@@ -1,55 +1,33 @@
 package com.meshnet.meshnet_app
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.meshnet.meshnet_app.crypto.MeshCrypto
+import com.meshnet.meshnet_app.storage.MeshDatabase
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyString
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 import java.util.UUID
 
 class IdentityStoreStressTest {
 
     private lateinit var mockContext: Context
-    private lateinit var mockPrefs: SharedPreferences
-    private lateinit var mockEditor: SharedPreferences.Editor
-    private lateinit var storage: MutableMap<String, String?>
     private lateinit var store: IdentityStore
 
     @Before
     fun setUp() {
+        MeshDatabase.setInstance(TestDatabaseHelper.createMockDatabase())
         mockContext = mock(Context::class.java)
-        mockPrefs = mock(SharedPreferences::class.java)
-        mockEditor = mock(SharedPreferences.Editor::class.java)
-        storage = mutableMapOf()
-
-        `when`(mockContext.getSharedPreferences("meshnet_identity", Context.MODE_PRIVATE))
-            .thenReturn(mockPrefs)
-        `when`(mockPrefs.edit()).thenReturn(mockEditor)
-        `when`(mockEditor.putString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val value = invocation.getArgument<Any>(1)?.toString()
-            storage[key] = value
-            mockEditor
-        }
-        `when`(mockPrefs.getString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val defValue = invocation.getArgument<Any>(1)
-            storage[key] ?: defValue
-        }
-        `when`(mockPrefs.contains(anyString())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            storage.containsKey(key)
-        }
-
         store = IdentityStore(mockContext)
+    }
+
+    @After
+    fun tearDown() {
+        MeshDatabase.resetInstance()
     }
 
     @Test
@@ -212,41 +190,6 @@ class IdentityStoreStressTest {
         threads.forEach { it.start() }
         threads.forEach { it.join(2000) }
         assertNotNull(store.displayName())
-    }
-
-    @Test
-    fun persistence_deviceId() {
-        store.init(null)
-        assertTrue(storage.containsKey("device_id"))
-        assertNotNull(storage["device_id"])
-    }
-
-    @Test
-    fun persistence_privateKey() {
-        store.init(null)
-        assertTrue(storage.containsKey("private_key"))
-        assertNotNull(storage["private_key"])
-    }
-
-    @Test
-    fun persistence_publicKey() {
-        store.init(null)
-        assertTrue(storage.containsKey("public_key"))
-        assertNotNull(storage["public_key"])
-    }
-
-    @Test
-    fun persistence_displayName() {
-        store.init("Test")
-        assertTrue(storage.containsKey("display_name"))
-        assertEquals("Test", storage["display_name"])
-    }
-
-    @Test
-    fun persistence_setDisplayName_updates() {
-        store.init("Alice")
-        store.setDisplayName("Bob")
-        assertEquals("Bob", storage["display_name"])
     }
 
     @Test

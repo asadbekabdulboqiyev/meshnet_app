@@ -1,14 +1,11 @@
 package com.meshnet.meshnet_app.protocol
 
 import android.content.Context
-import android.content.SharedPreferences
-import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.meshnet.meshnet_app.crypto.MeshCrypto
+import com.meshnet.meshnet_app.storage.MeshDatabase
 import java.security.SecureRandom
 
-class GroupStore(context: Context) {
+class GroupStore {
 
     companion object {
         private const val TAG = "GroupStore"
@@ -29,23 +26,16 @@ class GroupStore(context: Context) {
         val createdBy: String,
     )
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("meshnet_groups", Context.MODE_PRIVATE)
-    private val gson = Gson()
+    private val db: MeshDatabase
 
-    private fun load(): MutableMap<String, Group> {
-        val json = prefs.getString("groups", null) ?: return mutableMapOf()
-        return try {
-            val type = object : TypeToken<MutableMap<String, Group>>() {}.type
-            gson.fromJson(json, type) ?: mutableMapOf()
-        } catch (e: Exception) {
-            Log.e(TAG, "Load error: ${e.message}")
-            mutableMapOf()
-        }
+    /** Production constructor */
+    constructor(context: Context) {
+        db = MeshDatabase.getInstance(context)
     }
 
-    private fun save(groups: MutableMap<String, Group>) {
-        prefs.edit().putString("groups", gson.toJson(groups)).apply()
+    /** Testing constructor */
+    constructor(database: MeshDatabase) {
+        db = database
     }
 
     fun createGroup(name: String, members: List<GroupMember>, createdBy: String): Group {
@@ -59,54 +49,48 @@ class GroupStore(context: Context) {
             createdAtMs = System.currentTimeMillis(),
             createdBy = createdBy,
         )
-        val groups = load()
-        groups[groupId] = group
-        save(groups)
+        db.insertGroup(group)
         return group
     }
 
-    fun getGroup(groupId: String): Group? = load()[groupId]
+    fun getGroup(groupId: String): Group? = db.getGroup(groupId)
 
-    fun getAllGroups(): List<Group> = load().values.toList()
+    fun getAllGroups(): List<Group> = db.getAllGroups()
 
     fun updateGroup(group: Group) {
-        val groups = load()
-        groups[group.groupId] = group
-        save(groups)
+        db.insertGroup(group)
     }
 
     fun deleteGroup(groupId: String) {
-        val groups = load()
-        groups.remove(groupId)
-        save(groups)
+        db.deleteGroup(groupId)
     }
 
     fun addMember(groupId: String, member: GroupMember) {
-        val group = load()[groupId] ?: return
+        val group = db.getGroup(groupId) ?: return
         if (group.members.any { it.deviceId == member.deviceId }) return
         val updated = group.copy(members = group.members + member)
-        updateGroup(updated)
+        db.insertGroup(updated)
     }
 
     fun removeMember(groupId: String, deviceId: String) {
-        val group = load()[groupId] ?: return
+        val group = db.getGroup(groupId) ?: return
         val updated = group.copy(members = group.members.filter { it.deviceId != deviceId })
-        updateGroup(updated)
+        db.insertGroup(updated)
     }
 
     fun getMemberDeviceIds(groupId: String): List<String> {
-        return load()[groupId]?.members?.map { it.deviceId } ?: emptyList()
+        return db.getGroupMembers(groupId).map { it.deviceId }
     }
 
     fun getSymmetricKey(groupId: String): ByteArray? {
-        return load()[groupId]?.symmetricKey?.let { MeshCrypto.unb64(it) }
+        return db.getGroup(groupId)?.symmetricKey?.let { MeshCrypto.unb64(it) }
     }
 
     fun rotateKey(groupId: String): ByteArray? {
-        val group = load()[groupId] ?: return null
+        val group = db.getGroup(groupId) ?: return null
         val newKey = ByteArray(32).also { SecureRandom().nextBytes(it) }
         val updated = group.copy(symmetricKey = MeshCrypto.b64(newKey))
-        updateGroup(updated)
+        db.insertGroup(updated)
         return newKey
     }
 }

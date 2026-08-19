@@ -1,20 +1,12 @@
 package com.meshnet.meshnet_app.storage
 
 import android.content.Context
-import android.content.SharedPreferences
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 /**
  * Peer (contact) storage.
  * Authorized peers: verified via QR/PAIR (for E2E).
  */
-class PeerStore(context: Context) {
-
-    companion object {
-        private const val PREFS = "meshnet_peers"
-        private const val K_PEERS = "peers_json"
-    }
+class PeerStore {
 
     data class Peer(
         val deviceId: String,
@@ -28,29 +20,33 @@ class PeerStore(context: Context) {
         val hopDistance: Int = 0,     // number of hops away (0 = direct)
     )
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-    private val gson = Gson()
+    private val db: MeshDatabase
+
+    /** Production constructor — uses singleton MeshDatabase. */
+    constructor(context: Context) {
+        db = MeshDatabase.getInstance(context)
+    }
+
+    /** Testing constructor — inject a specific MeshDatabase. */
+    constructor(database: MeshDatabase) {
+        db = database
+    }
 
     // In-memory cache: avoids reading from disk on every read,
     // persisted on write. This allows using RoutingEngine in JVM
-    // unit tests (with mock prefs).
+    // unit tests (with mock db).
     private val peers: MutableMap<String, Peer> by lazy {
         load()
     }
 
     private fun load(): MutableMap<String, Peer> {
-        val json = prefs.getString(K_PEERS, null) ?: return mutableMapOf()
-        return try {
-            val type = object : TypeToken<MutableMap<String, Peer>>() {}.type
-            gson.fromJson<MutableMap<String, Peer>>(json, type) ?: mutableMapOf()
-        } catch (e: Exception) {
-            mutableMapOf()
-        }
+        return db.getAllPeers().associateBy { it.deviceId }.toMutableMap()
     }
 
     private fun save() {
-        prefs.edit().putString(K_PEERS, gson.toJson(peers)).apply()
+        for (peer in peers.values) {
+            db.upsertPeer(peer)
+        }
     }
 
     fun upsert(peer: Peer) {
@@ -88,6 +84,7 @@ class PeerStore(context: Context) {
 
     fun remove(deviceId: String) {
         peers.remove(deviceId)
+        db.removePeer(deviceId)
         save()
     }
 }

@@ -1,11 +1,10 @@
 package com.meshnet.meshnet_app.crypto
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.util.Log
-import com.google.gson.Gson
+import com.meshnet.meshnet_app.storage.MeshDatabase
 
-class RatchetSessionStore(context: Context) {
+class RatchetSessionStore {
 
     companion object {
         private const val TAG = "RatchetSession"
@@ -20,9 +19,17 @@ class RatchetSessionStore(context: Context) {
         val createdAtMs: Long,
     )
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("meshnet_ratchet", Context.MODE_PRIVATE)
-    private val gson = Gson()
+    private val db: MeshDatabase
+
+    /** Production constructor */
+    constructor(context: Context) {
+        db = MeshDatabase.getInstance(context)
+    }
+
+    /** Testing constructor */
+    constructor(database: MeshDatabase) {
+        db = database
+    }
 
     fun save(peerId: String, session: DoubleRatchet) {
         val localKP = session.getSendPublicKey()
@@ -34,13 +41,12 @@ class RatchetSessionStore(context: Context) {
             serializedState = MeshCrypto.b64(session.serialize()),
             createdAtMs = System.currentTimeMillis(),
         )
-        prefs.edit().putString("session_$peerId", gson.toJson(info)).apply()
+        db.saveRatchetSession(peerId, info)
     }
 
     fun load(peerId: String): DoubleRatchet? {
-        val json = prefs.getString("session_$peerId", null) ?: return null
+        val info = db.getRatchetSessionInfo(peerId) ?: return null
         return try {
-            val info = gson.fromJson(json, SessionInfo::class.java)
             val session = DoubleRatchet(
                 sharedSecret = ByteArray(32),
                 dhSendKeyPair = DoubleRatchet.DHKeyPair(ByteArray(32), MeshCrypto.unb64(info.localPublicKey)),
@@ -55,14 +61,12 @@ class RatchetSessionStore(context: Context) {
     }
 
     fun remove(peerId: String) {
-        prefs.edit().remove("session_$peerId").apply()
+        db.removeRatchetSession(peerId)
     }
 
     fun hasSession(peerId: String): Boolean =
-        prefs.contains("session_$peerId")
+        db.hasRatchetSession(peerId)
 
-    fun getAllSessionIds(): Set<String> {
-        return prefs.all.keys.filter { it.startsWith("session_") }
-            .map { it.removePrefix("session_") }.toSet()
-    }
+    fun getAllSessionIds(): Set<String> =
+        db.getAllRatchetSessionIds()
 }

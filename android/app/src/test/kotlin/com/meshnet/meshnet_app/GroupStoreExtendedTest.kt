@@ -1,9 +1,10 @@
 package com.meshnet.meshnet_app
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.meshnet.meshnet_app.protocol.GroupStore
 import com.meshnet.meshnet_app.crypto.MeshCrypto
+import com.meshnet.meshnet_app.storage.MeshDatabase
+import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,9 +13,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyString
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 
 /**
@@ -24,8 +22,6 @@ import org.mockito.Mockito.mock
 class GroupStoreExtendedTest {
 
     private lateinit var mockContext: Context
-    private lateinit var mockPrefs: SharedPreferences
-    private lateinit var mockEditor: SharedPreferences.Editor
     private lateinit var groupStore: GroupStore
 
     private val CREATOR = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
@@ -34,30 +30,14 @@ class GroupStoreExtendedTest {
 
     @Before
     fun setUp() {
+        MeshDatabase.setInstance(TestDatabaseHelper.createMockDatabase())
         mockContext = mock(Context::class.java)
-        mockPrefs = mock(SharedPreferences::class.java)
-        mockEditor = mock(SharedPreferences.Editor::class.java)
-
-        `when`(mockContext.getSharedPreferences("meshnet_groups", Context.MODE_PRIVATE))
-            .thenReturn(mockPrefs)
-        `when`(mockPrefs.edit()).thenReturn(mockEditor)
-
-        val storage = mutableMapOf<String, String?>()
-
-        `when`(mockEditor.putString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val value = invocation.getArgument<Any>(1)?.toString()
-            storage[key] = value
-            mockEditor
-        }
-
-        `when`(mockPrefs.getString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val defValue = invocation.getArgument<Any>(1)
-            storage[key] ?: defValue
-        }
-
         groupStore = GroupStore(mockContext)
+    }
+
+    @After
+    fun tearDown() {
+        MeshDatabase.resetInstance()
     }
 
     // =================== Empty group ===================

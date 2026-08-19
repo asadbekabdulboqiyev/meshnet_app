@@ -1,61 +1,36 @@
 package com.meshnet.meshnet_app
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.meshnet.meshnet_app.crypto.MeshCrypto
+import com.meshnet.meshnet_app.storage.MeshDatabase
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyString
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 
 /**
  * IdentityStore testlari: init, deviceId, privateKey, publicKey, displayName, setDisplayName.
- * SharedPreferences mock bilan.
+ * MeshDatabase mock bilan.
  */
 class IdentityStoreTest {
 
     private lateinit var mockContext: Context
-    private lateinit var mockPrefs: SharedPreferences
-    private lateinit var mockEditor: SharedPreferences.Editor
-    private lateinit var storage: MutableMap<String, String?>
     private lateinit var store: IdentityStore
 
     @Before
     fun setUp() {
+        MeshDatabase.setInstance(TestDatabaseHelper.createMockDatabase())
         mockContext = mock(Context::class.java)
-        mockPrefs = mock(SharedPreferences::class.java)
-        mockEditor = mock(SharedPreferences.Editor::class.java)
-        storage = mutableMapOf()
-
-        `when`(mockContext.getSharedPreferences("meshnet_identity", Context.MODE_PRIVATE))
-            .thenReturn(mockPrefs)
-        `when`(mockPrefs.edit()).thenReturn(mockEditor)
-
-        `when`(mockEditor.putString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val value = invocation.getArgument<Any>(1)?.toString()
-            storage[key] = value
-            mockEditor
-        }
-
-        `when`(mockPrefs.getString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val defValue = invocation.getArgument<Any>(1)
-            storage[key] ?: defValue
-        }
-
-        `when`(mockPrefs.contains(anyString())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            storage.containsKey(key)
-        }
-
         store = IdentityStore(mockContext)
+    }
+
+    @After
+    fun tearDown() {
+        MeshDatabase.resetInstance()
     }
 
     // =================== init ===================
@@ -279,36 +254,38 @@ class IdentityStoreTest {
     @Test
     fun init_persistsToDeviceId() {
         store.init(null)
-        assertTrue(storage.containsKey("device_id"))
-        assertNotNull(storage["device_id"])
+        val id = store.deviceId()
+        assertNotNull(id)
+        assertTrue(id.isNotEmpty())
     }
 
     @Test
     fun init_persistsPrivateKey() {
         store.init(null)
-        assertTrue(storage.containsKey("private_key"))
-        assertNotNull(storage["private_key"])
+        val key = store.privateKey()
+        assertNotNull(key)
+        assertEquals(32, key.size)
     }
 
     @Test
     fun init_persistsPublicKey() {
         store.init(null)
-        assertTrue(storage.containsKey("public_key"))
-        assertNotNull(storage["public_key"])
+        val key = store.publicKey()
+        assertNotNull(key)
+        assertEquals(32, key.size)
     }
 
     @Test
     fun init_persistsDisplayName() {
         store.init("Test")
-        assertTrue(storage.containsKey("display_name"))
-        assertEquals("Test", storage["display_name"])
+        assertEquals("Test", store.displayName())
     }
 
     @Test
     fun setDisplayName_persistsChange() {
         store.init("Alice")
         store.setDisplayName("Bob")
-        assertEquals("Bob", storage["display_name"])
+        assertEquals("Bob", store.displayName())
     }
 
     // =================== Companion constants ===================

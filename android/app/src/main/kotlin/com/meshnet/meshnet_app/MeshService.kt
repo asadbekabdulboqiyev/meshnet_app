@@ -5,15 +5,20 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 
 /**
  * Foreground service: keeps mesh engine network activity alive.
  * Required on Android 8+ due to background restrictions.
+ *
+ * Acquires a WakeLock when running to prevent CPU sleep during
+ * BLE scanning/advertising and WiFi Direct transfers.
  */
 class MeshService : Service() {
 
@@ -21,24 +26,51 @@ class MeshService : Service() {
         private const val TAG = "MeshService"
         private const val CHANNEL_ID = "meshnet_foreground"
         private const val NOTIFICATION_ID = 1
+        private const val WAKELOCK_TAG = "MeshNet::MeshService"
     }
+
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        acquireWakeLock()
         startForegroundCompat()
         Log.i(TAG, "MeshService started")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Service allaqachon join; faqat notify yangilash mumkin
         return START_STICKY
     }
 
     override fun onDestroy() {
+        releaseWakeLock()
         super.onDestroy()
         Log.i(TAG, "MeshService stopped")
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = pm.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                WAKELOCK_TAG
+            ).apply {
+                acquire(4 * 60 * 60 * 1000L) // 4 hour max safety timeout
+            }
+            Log.d(TAG, "WakeLock acquired")
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let {
+            if (it.isHeld) {
+                it.release()
+                Log.d(TAG, "WakeLock released")
+            }
+        }
+        wakeLock = null
     }
 
     private fun startForegroundCompat() {

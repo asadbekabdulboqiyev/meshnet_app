@@ -1,10 +1,11 @@
 package com.meshnet.meshnet_app
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.meshnet.meshnet_app.protocol.GroupStore
 import com.meshnet.meshnet_app.crypto.MeshCrypto
+import com.meshnet.meshnet_app.storage.MeshDatabase
 import com.meshnet.meshnet_app.storage.PeerStore
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -12,18 +13,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.anyString
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 
 class GroupMessagingTest {
 
     private lateinit var mockContext: Context
-    private lateinit var mockPrefs: SharedPreferences
-    private lateinit var mockEditor: SharedPreferences.Editor
-    private lateinit var storage: MutableMap<String, String?>
     private lateinit var groupStore: GroupStore
     private lateinit var peerStore: PeerStore
 
@@ -34,36 +28,15 @@ class GroupMessagingTest {
 
     @Before
     fun setUp() {
+        MeshDatabase.setInstance(TestDatabaseHelper.createMockDatabase())
         mockContext = mock(Context::class.java)
-        mockPrefs = mock(SharedPreferences::class.java)
-        mockEditor = mock(SharedPreferences.Editor::class.java)
-        storage = mutableMapOf()
-
-        `when`(mockContext.getSharedPreferences(anyString(), anyInt())).thenReturn(mockPrefs)
-        `when`(mockPrefs.edit()).thenReturn(mockEditor)
-        `when`(mockEditor.putString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val value = invocation.getArgument<Any>(1)?.toString()
-            storage[key] = value
-            mockEditor
-        }
-        `when`(mockEditor.remove(any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            storage.remove(key)
-            mockEditor
-        }
-        `when`(mockEditor.clear()).thenAnswer {
-            storage.clear()
-            mockEditor
-        }
-        `when`(mockPrefs.getString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val defValue = invocation.getArgument<Any>(1)
-            storage[key] ?: defValue
-        }
-
         groupStore = GroupStore(mockContext)
         peerStore = PeerStore(mockContext)
+    }
+
+    @After
+    fun tearDown() {
+        MeshDatabase.resetInstance()
     }
 
     @Test
@@ -281,13 +254,6 @@ class GroupMessagingTest {
         ), CREATOR_ID)
         val ids = groupStore.getMemberDeviceIds(group.groupId).toSet()
         assertEquals(4, ids.size)
-    }
-
-    @Test
-    fun groupStore_persistsToPrefs() {
-        groupStore.createGroup("Test", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
-        val keys = storage.keys
-        assertTrue(keys.isNotEmpty())
     }
 
     @Test

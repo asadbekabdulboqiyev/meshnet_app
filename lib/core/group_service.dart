@@ -2,7 +2,7 @@ import 'package:flutter/services.dart';
 import '../models/group_model.dart';
 
 class GroupService {
-  static const MethodChannel _method = MethodChannel('meshnet/group');
+  static const MethodChannel _method = MethodChannel('meshnet/engine');
 
   Future<MeshGroup> createGroup(String name, List<String> memberDeviceIds) async {
     final result = await _method.invokeMethod('createGroup', {

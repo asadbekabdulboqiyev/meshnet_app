@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers.dart';
 import '../core/mesh_service.dart';
 import '../theme/app_theme.dart';
+import '../models/group_model.dart';
 import 'chat_view.dart';
+import 'group_chat_view.dart';
+import 'create_group_screen.dart';
 
-/// Chats list — no gradient.
+/// Chats list — groups + 1-on-1 peers.
 class ContactsView extends ConsumerStatefulWidget {
   const ContactsView({super.key});
 
@@ -23,7 +26,9 @@ class _ContactsViewState extends ConsumerState<ContactsView> {
     _loadUnreadCounts();
     ref.read(meshServiceProvider).events.listen((event) {
       if (!mounted) return;
-      if (event['event'] == 'messageReceived' || event['event'] == 'readReceipt') {
+      if (event['event'] == 'messageReceived' ||
+          event['event'] == 'readReceipt' ||
+          event['event'] == 'groupMessageReceived') {
         _loadUnreadCounts();
       }
     });
@@ -37,9 +42,19 @@ class _ContactsViewState extends ConsumerState<ContactsView> {
     });
   }
 
+  Future<void> _openCreateGroup() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+    );
+    if (result == true) {
+      ref.invalidate(groupsProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final peers = ref.watch(peersProvider).value ?? [];
+    final groupsAsync = ref.watch(groupsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -66,23 +81,167 @@ class _ContactsViewState extends ConsumerState<ContactsView> {
           ],
         ),
       ),
-      body: peers.isEmpty
-          ? _EmptyState()
-          : ListView.separated(
-              itemCount: peers.length,
-              separatorBuilder: (_, __) => Container(
-                height: 1,
-                color: MeshAppTheme.border,
-                margin: const EdgeInsets.only(left: 72),
-              ),
-              itemBuilder: (context, i) => _ContactTile(
-                peer: peers[i],
-                unreadCount: _unreadCounts[peers[i]['deviceId'] as String? ?? ''] ?? 0,
-              ),
-            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openCreateGroup,
+        backgroundColor: MeshAppTheme.primary,
+        child: const Icon(Icons.group_add_rounded, color: Colors.white),
+      ),
+      body: _buildBody(peers, groupsAsync),
+    );
+  }
+
+  Widget _buildBody(List<Map<String, dynamic>> peers, AsyncValue<List<Map<String, dynamic>>> groupsAsync) {
+    final groups = groupsAsync.value ?? [];
+    final hasGroups = groups.isNotEmpty;
+    final hasPeers = peers.isNotEmpty;
+
+    if (!hasGroups && !hasPeers) return _EmptyState();
+
+    return ListView(
+      children: [
+        // ── Groups section ──
+        if (hasGroups) ...[
+          _SectionHeader(title: 'Groups', count: groups.length),
+          ...groups.map((g) => _GroupTile(
+            group: g,
+            onTap: () {
+              final meshGroup = MeshGroup.fromMap(g);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => GroupChatView(group: meshGroup),
+                ),
+              );
+            },
+          )),
+        ],
+
+        // ── Contacts section ──
+        if (hasPeers) ...[
+          _SectionHeader(title: 'Contacts', count: peers.length),
+          ...List.generate(peers.length, (i) {
+            final peer = peers[i];
+            return _ContactTile(
+              peer: peer,
+              unreadCount: _unreadCounts[peer['deviceId'] as String? ?? ''] ?? 0,
+            );
+          }),
+        ],
+      ],
     );
   }
 }
+
+// ── Section header ──
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.count});
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: MeshAppTheme.textDim,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: MeshAppTheme.border,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: MeshAppTheme.textDim,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Group tile ──
+
+class _GroupTile extends StatelessWidget {
+  const _GroupTile({required this.group, this.onTap});
+  final Map<String, dynamic> group;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = group['name'] as String? ?? 'Group';
+    final members = (group['members'] as List?) ?? [];
+    final memberCount = members.length;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: MeshAppTheme.info.withValues(alpha: 0.15),
+                child: Icon(
+                  Icons.group_rounded,
+                  color: MeshAppTheme.info,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: MeshAppTheme.textWhite,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$memberCount ${memberCount == 1 ? 'member' : 'members'}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: MeshAppTheme.textDim,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: MeshAppTheme.textDim, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Empty state ──
 
 class _EmptyState extends StatelessWidget {
   @override
@@ -115,7 +274,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Add a peer from the "Pair" screen\nvia QR code',
+            'Add a peer from the "Pair" screen\nor create a group',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
@@ -128,6 +287,8 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
+// ── Contact tile ──
 
 class _ContactTile extends StatelessWidget {
   const _ContactTile({required this.peer, this.unreadCount = 0});
@@ -169,7 +330,6 @@ class _ContactTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              // Avatar
               Stack(
                 children: [
                   CircleAvatar(

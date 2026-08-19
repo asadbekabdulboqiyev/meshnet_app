@@ -1,27 +1,18 @@
 package com.meshnet.meshnet_app
 
 import android.content.Context
-import android.content.SharedPreferences
+import com.meshnet.meshnet_app.storage.MeshDatabase
 import com.meshnet.meshnet_app.storage.MessageStore
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyString
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 
-/**
- * MessageStore testlari: addIncoming, loadIncoming, saveOutbox, loadOutbox,
- * 200-message cap, persistence.
- */
 class MessageStoreTest {
 
     private lateinit var mockContext: Context
-    private lateinit var mockPrefs: SharedPreferences
-    private lateinit var mockEditor: SharedPreferences.Editor
-    private lateinit var storage: MutableMap<String, String?>
     private lateinit var store: MessageStore
 
     private val SENDER = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
@@ -29,35 +20,14 @@ class MessageStoreTest {
 
     @Before
     fun setUp() {
+        MeshDatabase.setInstance(TestDatabaseHelper.createMockDatabase())
         mockContext = mock(Context::class.java)
-        mockPrefs = mock(SharedPreferences::class.java)
-        mockEditor = mock(SharedPreferences.Editor::class.java)
-        storage = mutableMapOf()
-
-        `when`(mockContext.getSharedPreferences("meshnet_messages", Context.MODE_PRIVATE))
-            .thenReturn(mockPrefs)
-        `when`(mockPrefs.edit()).thenReturn(mockEditor)
-
-        `when`(mockEditor.putString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val value = invocation.getArgument<Any>(1)?.toString()
-            storage[key] = value
-            mockEditor
-        }
-
-        `when`(mockEditor.remove(any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            storage.remove(key)
-            mockEditor
-        }
-
-        `when`(mockPrefs.getString(any(), any())).thenAnswer { invocation ->
-            val key = invocation.getArgument<Any>(0).toString()
-            val defValue = invocation.getArgument<Any>(1)
-            storage[key] ?: defValue
-        }
-
         store = MessageStore(mockContext)
+    }
+
+    @After
+    fun tearDown() {
+        MeshDatabase.resetInstance()
     }
 
     // =================== loadIncoming ===================
@@ -287,19 +257,21 @@ class MessageStoreTest {
     // =================== Persistence ===================
 
     @Test
-    fun addIncoming_persistsToStorage() {
+    fun addIncoming_persistsViaDatabase() {
         store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, "Salom"))
-        assertTrue(storage.containsKey("inbox_json"))
-        assertNotNull(storage["inbox_json"])
+        val messages = store.loadIncoming()
+        assertEquals(1, messages.size)
+        assertEquals("Salom", messages[0].message)
     }
 
     @Test
-    fun saveOutbox_persistsToStorage() {
+    fun saveOutbox_persistsViaDatabase() {
         store.saveOutbox(listOf(
             MessageStore.OutboxMessage("msg-1", TARGET, "frame"),
         ))
-        assertTrue(storage.containsKey("outbox_json"))
-        assertNotNull(storage["outbox_json"])
+        val loaded = store.loadOutbox()
+        assertEquals(1, loaded.size)
+        assertEquals("frame", loaded[0].encodedFrame)
     }
 
     @Test

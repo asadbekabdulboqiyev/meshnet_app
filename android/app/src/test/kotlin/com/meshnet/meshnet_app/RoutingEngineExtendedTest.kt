@@ -1,12 +1,13 @@
 package com.meshnet.meshnet_app
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.meshnet.meshnet_app.crypto.MeshCrypto
 import com.meshnet.meshnet_app.protocol.MeshFrame
 import com.meshnet.meshnet_app.protocol.MessageType
 import com.meshnet.meshnet_app.protocol.RoutingEngine
+import com.meshnet.meshnet_app.storage.MeshDatabase
 import com.meshnet.meshnet_app.storage.PeerStore
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -14,10 +15,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.anyString
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 
 /**
@@ -81,27 +78,24 @@ class RoutingEngineExtendedTest {
         val first: A, val second: B, val third: C, val fourth: D, val fifth: E
     )
 
+    @Before
+    fun setUp() {
+        MeshDatabase.setInstance(TestDatabaseHelper.createMockDatabase())
+    }
+
+    @After
+    fun tearDown() {
+        MeshDatabase.resetInstance()
+    }
+
     private fun makeEngine(id: String, keyPair: MeshCrypto.KeyPair): Harness {
         val ctx = mock(Context::class.java)
-        val prefs = mockPrefs()
-        `when`(ctx.getSharedPreferences(anyString(), anyInt())).thenReturn(prefs)
         val store = PeerStore(ctx)
         val engine = RoutingEngine(ctx, id, keyPair.privateKey, store)
         engine.setIdentityPublicKey(keyPair.publicKey)
         val harness = Harness(engine, store)
         engine.addListener(harness)
         return harness
-    }
-
-    private fun mockPrefs(): SharedPreferences {
-        val editor = mock(SharedPreferences.Editor::class.java)
-        `when`(editor.putString(anyString(), any())).thenReturn(editor)
-        `when`(editor.remove(anyString())).thenReturn(editor)
-        `when`(editor.clear()).thenReturn(editor)
-        val prefs = mock(SharedPreferences::class.java)
-        `when`(prefs.getString(anyString(), any())).thenReturn(null)
-        `when`(prefs.edit()).thenReturn(editor)
-        return prefs
     }
 
     // =================== Stats ===================

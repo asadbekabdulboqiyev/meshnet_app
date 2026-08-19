@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers.dart';
-import '../core/group_service.dart';
+import '../core/mesh_service.dart';
+import '../theme/app_theme.dart';
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
   const CreateGroupScreen({super.key});
@@ -12,7 +13,6 @@ class CreateGroupScreen extends ConsumerStatefulWidget {
 
 class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   final TextEditingController _nameController = TextEditingController();
-  final GroupService _groupService = GroupService();
   final Set<String> _selectedPeers = {};
   bool _isLoading = false;
 
@@ -33,7 +33,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _groupService.createGroup(name, _selectedPeers.toList());
+      await ref.read(meshServiceProvider).createGroup(name, _selectedPeers.toList());
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -62,9 +62,9 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text(
+                : Text(
                     'Yaratish',
-                    style: TextStyle(color: Color(0xFF00897B), fontWeight: FontWeight.bold),
+                    style: TextStyle(color: MeshAppTheme.primary, fontWeight: FontWeight.bold),
                   ),
           ),
         ],
@@ -78,14 +78,14 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Guruh nomi',
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+                hintStyle: TextStyle(color: MeshAppTheme.textDim),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white24),
+                  borderSide: BorderSide(color: MeshAppTheme.border),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white24),
+                  borderSide: BorderSide(color: MeshAppTheme.border),
                 ),
               ),
             ),
@@ -123,8 +123,8 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor: isSelected
-                            ? const Color(0xFF00897B)
-                            : Colors.white24,
+                            ? MeshAppTheme.primary
+                            : MeshAppTheme.bgElevated,
                         child: Icon(
                           isSelected ? Icons.check : Icons.person,
                           color: Colors.white,
@@ -139,8 +139,8 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                         peer['online'] == true ? 'Online' : 'Offline',
                         style: TextStyle(
                           color: peer['online'] == true
-                              ? const Color(0xFF66BB6A)
-                              : Colors.white38,
+                              ? MeshAppTheme.success
+                              : MeshAppTheme.textDim,
                           fontSize: 12,
                         ),
                       ),

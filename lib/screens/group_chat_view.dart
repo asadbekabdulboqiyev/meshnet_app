@@ -2,9 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers.dart';
-import '../core/group_service.dart';
+import '../core/mesh_service.dart';
 import '../models/message_model.dart';
 import '../models/group_model.dart';
+import '../theme/app_theme.dart';
 
 class GroupChatView extends ConsumerStatefulWidget {
   final MeshGroup group;
@@ -18,7 +19,6 @@ class GroupChatView extends ConsumerStatefulWidget {
 class _GroupChatViewState extends ConsumerState<GroupChatView> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final GroupService _groupService = GroupService();
   final List<ChatMessage> _messages = [];
   StreamSubscription? _eventSub;
 
@@ -72,7 +72,7 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
     });
 
     try {
-      await _groupService.sendGroupMessage(widget.group.groupId, text);
+      await ref.read(meshServiceProvider).sendGroupMessage(widget.group.groupId, text);
       if (mounted) {
         setState(() {
           _messages.first = _messages.first.copyWith(status: MessageStatus.sent);
@@ -112,10 +112,10 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
         children: [
           Expanded(
             child: _messages.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'No messages yet',
-                      style: TextStyle(color: Colors.white54),
+                      style: TextStyle(color: MeshAppTheme.textDim),
                     ),
                   )
                 : ListView.builder(
@@ -149,8 +149,8 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
                 padding: const EdgeInsets.only(bottom: 2),
                 child: Text(
                   msg.senderName!,
-                  style: const TextStyle(
-                    color: Color(0xFF80CBC4),
+                  style: TextStyle(
+                    color: MeshAppTheme.info,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -160,8 +160,8 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: msg.fromMe
-                    ? const Color(0xFF00897B)
-                    : const Color(0xFF2A2A2A),
+                    ? MeshAppTheme.primary
+                    : MeshAppTheme.bgElevated,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
@@ -178,9 +178,9 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
   Widget _buildInput() {
     return Container(
       padding: const EdgeInsets.all(8),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A1A1A),
-        border: Border(top: BorderSide(color: Colors.white12)),
+      decoration: BoxDecoration(
+        color: MeshAppTheme.bgDeep,
+        border: Border(top: BorderSide(color: MeshAppTheme.border)),
       ),
       child: SafeArea(
         child: Row(
@@ -191,13 +191,13 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Type a message...',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+                  hintStyle: TextStyle(color: MeshAppTheme.textDim),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFF2A2A2A),
+                  fillColor: MeshAppTheme.bgElevated,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
@@ -208,7 +208,7 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
             ),
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.send, color: Color(0xFF00897B)),
+              icon: Icon(Icons.send, color: MeshAppTheme.primary),
               onPressed: _send,
             ),
           ],

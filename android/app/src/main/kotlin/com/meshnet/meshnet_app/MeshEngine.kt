@@ -547,14 +547,14 @@ class MeshEngine(private val context: Context) {
 
         override fun onFrameToSend(frame: MeshFrame, transport: String?) {
             if (transport != null) {
-                val t = if (transport == "wifi") {
-                    TransportManager.Transport.WIFI
-                } else {
-                    TransportManager.Transport.BLE
+                val t = when (transport) {
+                    "wifi" -> TransportManager.Transport.WIFI
+                    "ble" -> TransportManager.Transport.BLE
+                    else -> TransportManager.Transport.AUTO
                 }
                 transportManager.sendFrame(frame.targetId, frame, t) {}
             } else {
-                transportManager.flood(frame)
+                transportManager.sendFrame(frame.targetId, frame, TransportManager.Transport.AUTO) {}
             }
         }
 
@@ -572,6 +572,17 @@ class MeshEngine(private val context: Context) {
             emit("readReceipt", mapOf(
                 "fromDeviceId" to fromDeviceId,
                 "messageIds" to messageIds,
+            ))
+        }
+
+        override fun onGroupMessageReceived(groupId: String, senderId: String, message: String, senderName: String, messageId: String) {
+            emit("groupMessageReceived", mapOf(
+                "groupId" to groupId,
+                "senderId" to senderId,
+                "message" to message,
+                "senderName" to senderName,
+                "messageId" to messageId,
+                "timestamp" to System.currentTimeMillis(),
             ))
         }
     }
