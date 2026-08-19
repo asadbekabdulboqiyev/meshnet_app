@@ -42,7 +42,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full technical details.
 
 ## Testing
 
-- **765 Kotlin unit tests** -- crypto, protocol, storage, routing, edge cases, stress tests
+- **753 Kotlin unit tests** -- crypto, protocol, storage, routing, edge cases, stress tests
 - **242 Flutter unit tests** -- models, services, widgets
 
 ```bash
@@ -53,7 +53,7 @@ cd android && ./gradlew test
 flutter test
 
 # Build debug APK
-flutter build apk --debug
+flutter build apk --debug --no-tree-shake-icons
 ```
 
 ## Requirements
@@ -73,7 +73,7 @@ cd meshnet_app
 flutter pub get
 
 # Build
-flutter build apk --debug
+flutter build apk --release --no-tree-shake-icons
 ```
 
 ## License

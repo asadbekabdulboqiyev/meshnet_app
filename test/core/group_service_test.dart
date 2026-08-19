@@ -8,7 +8,7 @@ void main() {
 
   group('GroupService', () {
     late GroupService service;
-    const channel = MethodChannel('meshnet/group');
+    const channel = MethodChannel('meshnet/engine');
     late List<MethodCall> log;
 
     setUp(() {
