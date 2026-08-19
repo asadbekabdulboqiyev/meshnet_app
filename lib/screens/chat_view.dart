@@ -6,9 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/mesh_service.dart';
 import '../models/message_model.dart';
 import '../theme/app_theme.dart';
-import '../widgets/file_bubble.dart';
-import '../widgets/voice_message_bubble.dart';
-import '../screens/media_preview.dart';
 
 /// Chat screen — no gradient.
 class ChatView extends ConsumerStatefulWidget {
@@ -50,39 +47,6 @@ class _ChatViewState extends ConsumerState<ChatView> {
               text: event['message'] as String? ?? '',
               fromMe: false,
               timestamp: ts != null ? DateTime.fromMillisecondsSinceEpoch(ts) : DateTime.now(),
-            ));
-          });
-          _scrollToBottom();
-        }
-      } else if (evt == 'fileTransferComplete') {
-        final senderId = event['senderId'] as String? ?? '';
-        if (senderId == widget.peerId) {
-          final filePath = event['filePath'] as String? ?? '';
-          final fileName = event['fileName'] as String? ?? '';
-          setState(() {
-            _messages.add(ChatMessage(
-              messageId: 'file:${DateTime.now().millisecondsSinceEpoch}',
-              type: MessageType.file,
-              fromMe: false,
-              localPath: filePath,
-              fileName: fileName,
-              status: MessageStatus.delivered,
-              timestamp: DateTime.now(),
-            ));
-          });
-          _scrollToBottom();
-        }
-      } else if (evt == 'voiceMessageReceived') {
-        final senderId = event['senderId'] as String? ?? '';
-        if (senderId == widget.peerId) {
-          final messageId = event['messageId'] as String? ?? '';
-          setState(() {
-            _messages.add(ChatMessage(
-              messageId: messageId,
-              type: MessageType.voice,
-              fromMe: false,
-              status: MessageStatus.delivered,
-              timestamp: DateTime.now(),
             ));
           });
           _scrollToBottom();
@@ -399,24 +363,6 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (message.type == MessageType.image || message.type == MessageType.file) {
-      return FileBubble(
-        message: message,
-        onTap: () {
-          final path = message.localPath ?? message.remotePath;
-          if (path != null && message.mimeType?.startsWith('image/') == true) {
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => MediaPreviewScreen(filePath: path, title: message.fileName),
-            ));
-          }
-        },
-      );
-    }
-
-    if (message.type == MessageType.voice) {
-      return VoiceMessageBubble(message: message);
-    }
-
     final me = message.fromMe;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),

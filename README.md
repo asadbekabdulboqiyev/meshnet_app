@@ -33,8 +33,6 @@ Internet is expensive, unreliable, or censored in many parts of the world. Durin
 - **E2E encryption** -- ChaCha20-Poly1305 + X25519 key exchange + Double Ratchet forward secrecy
 - **QR code pairing** -- secure out-of-band device pairing
 - **1:1 and group chat** -- encrypted text messaging
-- **File transfer** -- send any file type over mesh
-- **Voice messages** -- Opus/AAC encoded audio
 - **Read receipts** -- blue double-check delivery confirmation
 - **Store-and-forward** -- messages queued for offline peers, auto-retried
 - **Network topology** -- real-time visualization of connected peers and routes
@@ -60,12 +58,12 @@ Flutter UI  <-->  MeshService (MethodChannel)  <-->  MeshEngine  <-->  RoutingEn
 
 ## Testing
 
-**995 total unit tests** -- all passing.
+**965 total unit tests** -- all passing.
 
 | Suite | Count | Coverage |
 |-------|-------|----------|
 | Kotlin | 753 | Crypto, protocol, storage, routing, edge cases, stress tests |
-| Flutter | 242 | Models, services, widgets |
+| Flutter | 212 | Models, services, widgets |
 
 ```bash
 cd android && ./gradlew test     # Kotlin tests
