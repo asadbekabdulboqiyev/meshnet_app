@@ -54,7 +54,72 @@ class RoutingEngine(
         fun onGroupMessageReceived(groupId: String, senderId: String, message: String, senderName: String, messageId: String) {}
         fun onVoiceMessageReceived(senderId: String, audioData: ByteArray, messageId: String) {}
         fun onReadReceived(fromDeviceId: String, messageIds: List<String>) {}
+        fun onLocalEvent(event: Map<String, Any?>) {}
     }
+
+    /**
+     * LocalNet (Phase 1): DNS frames are handled outside RoutingEngine by
+     * LocalNetService. Kept as an optional hook so the routing core stays
+     * decoupled from LocalNet.
+     */
+    interface DnsHandler {
+        fun onDnsAnnounce(frame: MeshFrame) {}
+        fun onDnsQuery(frame: MeshFrame) {}
+        fun onDnsResponse(frame: MeshFrame) {}
+    }
+
+    @Volatile
+    var dnsHandler: DnsHandler? = null
+
+    /**
+     * LocalNet (Phase 3): collaboration frames (whiteboard/docs/polls) are
+     * handled outside RoutingEngine by CollabService. Optional hook keeps
+     * the routing core decoupled from LocalNet.
+     */
+    interface CollabHandler {
+        fun onBoardStroke(frame: MeshFrame) {}
+        fun onBoardClear(frame: MeshFrame) {}
+        fun onDocEdit(frame: MeshFrame) {}
+        fun onPollCreate(frame: MeshFrame) {}
+        fun onPollVote(frame: MeshFrame) {}
+    }
+
+    @Volatile
+    var collabHandler: CollabHandler? = null
+
+    /**
+     * LocalNet (Phase 5): internet gateway presence frames are handled
+     * outside RoutingEngine by LocalNetService. Optional hook keeps the
+     * routing core decoupled from LocalNet.
+     */
+    interface GatewayHandler {
+        fun onGatewayAnnounce(frame: MeshFrame) {}
+    }
+
+    @Volatile
+    var gatewayHandler: GatewayHandler? = null
+
+    /**
+     * LocalNet (Phase 6): emergency broadcast frames are handled
+     * outside RoutingEngine by LocalNetService.
+     */
+    interface EmergencyHandler {
+        fun onEmergencyFrame(frame: MeshFrame) {}
+    }
+
+    @Volatile
+    var emergencyHandler: EmergencyHandler? = null
+
+    /**
+     * LocalNet (Phase 6): search frames are handled
+     * outside RoutingEngine by LocalNetService.
+     */
+    interface SearchHandler {
+        fun onSearchFrame(frame: MeshFrame) {}
+    }
+
+    @Volatile
+    var searchHandler: SearchHandler? = null
 
     /** Route table entry: how to reach a specific node. */
     data class RouteEntry(
@@ -255,6 +320,19 @@ class RoutingEngine(
             MessageType.FIND_PEER -> handleFindPeer(frame)
             MessageType.FIND_PEER_ACK -> handleFindPeerAck(frame)
             MessageType.READ_RECEIPT -> handleReadReceipt(frame)
+            MessageType.DNS_ANNOUNCE -> dnsHandler?.onDnsAnnounce(frame)
+            MessageType.DNS_QUERY -> dnsHandler?.onDnsQuery(frame)
+            MessageType.DNS_RESPONSE -> dnsHandler?.onDnsResponse(frame)
+            MessageType.BOARD_STROKE -> collabHandler?.onBoardStroke(frame)
+            MessageType.BOARD_CLEAR -> collabHandler?.onBoardClear(frame)
+            MessageType.DOC_EDIT -> collabHandler?.onDocEdit(frame)
+            MessageType.POLL_CREATE -> collabHandler?.onPollCreate(frame)
+            MessageType.POLL_VOTE -> collabHandler?.onPollVote(frame)
+            MessageType.VPN_GW_ANNOUNCE -> gatewayHandler?.onGatewayAnnounce(frame)
+            MessageType.EMERGENCY_ALERT, MessageType.EMERGENCY_ACK, MessageType.EMERGENCY_CANCEL ->
+                emergencyHandler?.onEmergencyFrame(frame)
+            MessageType.SEARCH_QUERY, MessageType.SEARCH_RESULT, MessageType.SEARCH_INDEX_SYNC ->
+                searchHandler?.onSearchFrame(frame)
             MessageType.PEER_PING -> { /* javob kerak emas - borlik */ }
             MessageType.GROUP_CREATE -> { /* group yaratish qabul qilindi */ }
             MessageType.GROUP_ADD_MEMBER -> { /* a'zo qo'shildi */ }
@@ -503,6 +581,174 @@ class RoutingEngine(
         }
     }
 
+    // ---------------- LocalNet Phase 1: DNS frames ----------------
+
+    /** Broadcast our hostname announcement to the whole mesh. */
+    fun sendDnsAnnounce(payload: String): Boolean {
+        val seq = nextSeq()
+        registerSeen("$identityDeviceId:$seq")
+        val frame = MeshFrame(
+            type = MessageType.DNS_ANNOUNCE,
+            hopLimit = MAX_HOP,
+            ttl = 6,
+            encrypted = false,
+            senderId = identityDeviceId,
+            targetId = MeshFrame.BROADCAST,
+            msgSeq = seq,
+            payload = payload.toByteArray(StandardCharsets.UTF_8),
+            senderPublicKey = null,
+        )
+        emitForSend(frame, null)
+        return true
+    }
+
+    /** Broadcast "who has this hostname?" query. */
+    fun sendDnsQuery(hostname: String): Boolean {
+        if (hostname.isEmpty()) return false
+        val seq = nextSeq()
+        registerSeen("$identityDeviceId:$seq")
+        val frame = MeshFrame(
+            type = MessageType.DNS_QUERY,
+            hopLimit = MAX_HOP,
+            ttl = 6,
+            encrypted = false,
+            senderId = identityDeviceId,
+            targetId = MeshFrame.BROADCAST,
+            msgSeq = seq,
+            payload = hostname.toByteArray(StandardCharsets.UTF_8),
+            senderPublicKey = null,
+        )
+        emitForSend(frame, null)
+        return true
+    }
+
+    /** Unicast DNS answer back to the querying node. */
+    fun sendDnsResponse(targetId: String, responsePayload: String): Boolean {
+        val seq = nextSeq()
+        registerSeen("$identityDeviceId:$seq")
+        val frame = MeshFrame(
+            type = MessageType.DNS_RESPONSE,
+            hopLimit = MAX_HOP,
+            ttl = 6,
+            encrypted = false,
+            senderId = identityDeviceId,
+            targetId = targetId,
+            msgSeq = seq,
+            payload = responsePayload.toByteArray(StandardCharsets.UTF_8),
+            senderPublicKey = null,
+        )
+        emitForSend(frame, transportHint(targetId))
+        return true
+    }
+
+    // ---------------- LocalNet Phase 3: collaboration frames ----------------
+
+    /** Broadcast a whiteboard stroke (flood, multi-hop). */
+    fun sendBoardStroke(payload: String): Boolean =
+        sendCollabBroadcast(MessageType.BOARD_STROKE, payload)
+
+    /** Broadcast "clear this board". */
+    fun sendBoardClear(roomId: String): Boolean =
+        sendCollabBroadcast(MessageType.BOARD_CLEAR, roomId)
+
+    /** Broadcast a doc edit (LWW merge on every receiver). */
+    fun sendDocEdit(payload: String): Boolean =
+        sendCollabBroadcast(MessageType.DOC_EDIT, payload)
+
+    /** Broadcast a new poll. */
+    fun sendPollCreate(payload: String): Boolean =
+        sendCollabBroadcast(MessageType.POLL_CREATE, payload)
+
+    /** Broadcast a vote. */
+    fun sendPollVote(payload: String): Boolean =
+        sendCollabBroadcast(MessageType.POLL_VOTE, payload)
+
+    private fun sendCollabBroadcast(type: MessageType, payload: String): Boolean {
+        if (payload.isEmpty()) return false
+        val seq = nextSeq()
+        registerSeen("$identityDeviceId:$seq")
+        val frame = MeshFrame(
+            type = type,
+            hopLimit = MAX_HOP,
+            ttl = 6,
+            encrypted = false,
+            senderId = identityDeviceId,
+            targetId = MeshFrame.BROADCAST,
+            msgSeq = seq,
+            payload = payload.toByteArray(StandardCharsets.UTF_8),
+            senderPublicKey = null,
+        )
+        emitForSend(frame, null)
+        return true
+    }
+
+    // ---------------- LocalNet Phase 5: gateway presence ----------------
+
+    /** Broadcast "I am an internet gateway" (flood, multi-hop). */
+    fun sendGatewayAnnounce(payload: String): Boolean =
+        sendCollabBroadcast(MessageType.VPN_GW_ANNOUNCE, payload)
+
+    // ---------------- LocalNet Phase 6: emergency broadcast ----------------
+
+    /** Broadcast emergency alert (flood, high priority). */
+    fun sendEmergencyAlert(payload: ByteArray): Boolean =
+        sendCollabBroadcastBytes(MessageType.EMERGENCY_ALERT, payload)
+
+    /** Broadcast emergency acknowledgment. */
+    fun sendEmergencyAck(payload: ByteArray): Boolean =
+        sendCollabBroadcastBytes(MessageType.EMERGENCY_ACK, payload)
+
+    /** Broadcast emergency cancellation. */
+    fun sendEmergencyCancel(payload: ByteArray): Boolean =
+        sendCollabBroadcastBytes(MessageType.EMERGENCY_CANCEL, payload)
+
+    // ---------------- LocalNet Phase 6: mesh-wide search ----------------
+
+    /** Broadcast search query (flood). */
+    fun sendSearchQuery(payload: ByteArray): Boolean =
+        sendCollabBroadcastBytes(MessageType.SEARCH_QUERY, payload)
+
+    /** Send search result to specific target (unicast). */
+    fun sendSearchResult(targetId: String, payload: ByteArray): Boolean {
+        val frame = MeshFrame(
+            type = MessageType.SEARCH_RESULT,
+            hopLimit = MAX_HOP,
+            ttl = 4,
+            encrypted = false,
+            senderId = identityDeviceId,
+            targetId = targetId,
+            msgSeq = nextSeq(),
+            payload = payload,
+            senderPublicKey = null,
+        )
+        emitForSend(frame, null)
+        return true
+    }
+
+    /** Broadcast index sync (periodic, low priority). */
+    fun sendSearchIndexSync(payload: ByteArray): Boolean =
+        sendCollabBroadcastBytes(MessageType.SEARCH_INDEX_SYNC, payload)
+
+    /** Internal: broadcast with raw byte payload (for emergency/search). */
+    private fun sendCollabBroadcastBytes(type: MessageType, payload: ByteArray): Boolean {
+        if (payload.isEmpty()) return false
+        val seq = nextSeq()
+        registerSeen("$identityDeviceId:$seq")
+        val frame = MeshFrame(
+            type = type,
+            hopLimit = MAX_HOP,
+            ttl = 6,
+            encrypted = false,
+            senderId = identityDeviceId,
+            targetId = MeshFrame.BROADCAST,
+            msgSeq = seq,
+            payload = payload,
+            senderPublicKey = null,
+        )
+        emitForSend(frame, null)
+        return true
+    }
+
     // ---------------- Phase 5: Store-and-forward ----------------
 
     /** Retry all queued messages (or those for a specific target).
@@ -686,8 +932,13 @@ class RoutingEngine(
         return null
     }
 
-    private fun emitForSend(frame: MeshFrame, transport: String?) {
+    fun emitForSend(frame: MeshFrame, transport: String?) {
         listenerList.forEach { it.onFrameToSend(frame, transport) }
+    }
+
+    /** Emit a local event to all listeners (for emergency, search, RBAC events). */
+    fun emitLocalEvent(event: Map<String, Any?>) {
+        listenerList.forEach { it.onLocalEvent(event) }
     }
 
     // Identity public key (for pairing)

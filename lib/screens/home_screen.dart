@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import 'network_view.dart';
 import 'contacts_view.dart';
 import 'pairing_view.dart';
+import 'localnet_view.dart';
 
 /// Main screen — no gradient, clean nav bar.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -134,6 +135,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final screens = [
       const NetworkView(),
       const ContactsView(),
+      const LocalNetView(),
       PairingView(displayName: 'MeshNet User'),
     ];
 
@@ -178,6 +180,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icon(Icons.forum_outlined, size: 24),
             selectedIcon: Icon(Icons.forum_rounded, size: 24, color: MeshAppTheme.primary),
             label: 'Chats',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.lan_outlined, size: 24),
+            selectedIcon: Icon(Icons.lan_rounded, size: 24, color: MeshAppTheme.primary),
+            label: 'LocalNet',
           ),
           NavigationDestination(
             icon: Icon(Icons.qr_code_2_outlined, size: 24),

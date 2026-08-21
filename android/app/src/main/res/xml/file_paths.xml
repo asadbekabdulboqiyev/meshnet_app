@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 4: APK install handoff uchun share qilinadigan yo'llar.
+     downloadsDir = filesDir/localnet/downloads -> files-path coverage. -->
+<paths>
+    <files-path
+        name="localnet_downloads"
+        path="localnet/downloads/" />
+</paths>

@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.meshnet.meshnet_app.crypto.MeshCrypto
+import com.meshnet.meshnet_app.localnet.LocalNetService
 import com.meshnet.meshnet_app.protocol.FileTransferManager
 import com.meshnet.meshnet_app.protocol.GroupStore
 import com.meshnet.meshnet_app.protocol.MeshFrame
@@ -58,6 +59,13 @@ class MeshEngine(private val context: Context) {
     private val voiceRecorder = VoiceRecorder(context)
     private val voiceEncoder = VoiceEncoder()
     private val groupStore = GroupStore(context)
+
+    // LocalNet (Phase 1): created in init(), started/stopped with the engine
+    private var localNet: LocalNetService? = null
+
+    // App Distribution (Phase 4): offline APK repository over file sharing
+    var apps: com.meshnet.meshnet_app.localnet.apps.AppRepository? = null
+        private set
 
     // Event channel sink (to Flutter)
     private var eventSink: EventChannel.EventSink? = null
@@ -359,6 +367,543 @@ class MeshEngine(private val context: Context) {
                 }
             }
 
+            "getLocalNetInfo" -> {
+                val ln = localNet
+                result.success(mapOf(
+                    "available" to (ln != null),
+                    "hostname" to (ln?.selfHostname ?: ""),
+                    "fqdn" to (ln?.selfHostname?.let { "$it.mesh" } ?: ""),
+                    "httpPort" to (if (ln?.httpServer?.isRunning == true) ln.httpServer!!.boundPort else -1),
+                    "hosts" to (ln?.hostsSnapshot() ?: emptyList<Map<String, Any?>>()),
+                ))
+            }
+
+            "resolveHost" -> {
+                val hostname = call.argument<String>("hostname") ?: ""
+                if (hostname.isBlank()) {
+                    result.error("bad_args", "hostname required", null)
+                    return
+                }
+                val entry = localNet?.resolve(hostname)
+                result.success(mapOf(
+                    "found" to (entry != null),
+                    "hostname" to hostname,
+                    "deviceId" to (entry?.deviceId ?: ""),
+                    "pendingQuery" to (entry == null && localNet != null),
+                ))
+            }
+
+            // ---------------- LocalNet Phase 2: file sharing ----------------
+
+            "shareLocalFile" -> {
+                val filePath = call.argument<String>("filePath") ?: ""
+                val ln = localNet
+                if (filePath.isBlank() || ln == null) {
+                    result.error("bad_args", "filePath required", null)
+                    return
+                }
+                val manifest = ln.shareFile(filePath)
+                if (manifest != null) {
+                    result.success(manifestToMap(manifest))
+                } else {
+                    result.error("SHARE_FAILED", "Could not read or chunk file", null)
+                }
+            }
+
+            "getSharedFiles" -> {
+                val files: List<Map<String, Any?>> = localNet?.sharedFiles()?.map { manifestToMap(it) } ?: emptyList()
+                result.success(files)
+            }
+
+            "unshareFile" -> {
+                val fileId = call.argument<String>("fileId") ?: ""
+                result.success(localNet?.unshareFile(fileId) ?: false)
+            }
+
+            "getHostFiles" -> {
+                val hostname = call.argument<String>("hostname") ?: ""
+                val ln = localNet
+                if (hostname.isBlank() || ln == null) {
+                    result.error("bad_args", "hostname required", null)
+                    return
+                }
+                // Network I/O — reply asynchronously from worker thread
+                workerScope.launch(Dispatchers.IO) {
+                    val files = try {
+                        ln.fetchHostFileList(hostname).map { manifestToMap(it) }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "getHostFiles error: ${e.message}")
+                        emptyList<Map<String, Any?>>()
+                    }
+                    result.success(files)
+                }
+            }
+
+            "fetchHostFile" -> {
+                val hostname = call.argument<String>("hostname") ?: ""
+                val fileId = call.argument<String>("fileId") ?: ""
+                val ln = localNet
+                if (hostname.isBlank() || fileId.isBlank() || ln == null) {
+                    result.error("bad_args", "hostname/fileId required", null)
+                    return
+                }
+                val started = ln.fetchFile(hostname, fileId)
+                result.success(mapOf("started" to started))
+            }
+
+            // ---------------- LocalNet Phase 3: collaboration ----------------
+
+            "createBoard" -> {
+                val roomId = (call.argument<String>("roomId") ?: "").trim()
+                val ln = localNet
+                if (ln == null) {
+                    result.error("unavailable", "engine not ready", null)
+                    return
+                }
+                val id = if (roomId.isBlank()) "board-${java.util.UUID.randomUUID().toString().replace("-", "").take(8)}" else roomId
+                val board = ln.collab.ensureBoard(id)
+                if (board != null) {
+                    result.success(mapOf("roomId" to board.roomId, "strokeCount" to board.size))
+                } else {
+                    result.error("bad_args", "invalid roomId", null)
+                }
+            }
+
+            "sendStroke" -> {
+                val roomId = call.argument<String>("roomId") ?: ""
+                val color = call.argument<Number>("color")?.toInt() ?: 0xFF000000.toInt()
+                val width = call.argument<Number>("width")?.toFloat() ?: 3f
+                val rawPoints = call.argument<List<List<Number>>>("points")
+                val ln = localNet
+                if (roomId.isBlank() || rawPoints.isNullOrEmpty() || ln == null) {
+                    result.error("bad_args", "roomId/points required", null)
+                    return
+                }
+                val points = rawPoints.mapNotNull { p ->
+                    val x = p.getOrNull(0)?.toFloat()
+                    val y = p.getOrNull(1)?.toFloat()
+                    if (x != null && y != null) {
+                        com.meshnet.meshnet_app.localnet.collab.WhiteboardState.Point(
+                            (x * 10).toInt() / 10f, (y * 10).toInt() / 10f,
+                        )
+                    } else null
+                }
+                val strokeId = ln.collab.addStrokeLocal(roomId, color, width, points)
+                if (strokeId != null) {
+                    result.success(mapOf("strokeId" to strokeId))
+                } else {
+                    result.error("STROKE_FAILED", "could not add stroke", null)
+                }
+            }
+
+            "getBoard" -> {
+                val roomId = call.argument<String>("roomId") ?: ""
+                val ln = localNet
+                if (roomId.isBlank() || ln == null) {
+                    result.error("bad_args", "roomId required", null)
+                    return
+                }
+                val board = ln.collab.boards[roomId]
+                result.success(mapOf(
+                    "roomId" to roomId,
+                    "exists" to (board != null),
+                    "strokes" to (board?.all()?.map { s ->
+                        mapOf(
+                            "strokeId" to s.strokeId,
+                            "authorId" to s.authorId,
+                            "color" to s.color,
+                            "width" to s.width,
+                            "points" to s.points.map { listOf(it.x, it.y) },
+                        )
+                    } ?: emptyList()),
+                ))
+            }
+
+            "clearBoard" -> {
+                val roomId = call.argument<String>("roomId") ?: ""
+                val ln = localNet
+                if (roomId.isBlank() || ln == null) {
+                    result.error("bad_args", "roomId required", null)
+                    return
+                }
+                result.success(mapOf("cleared" to ln.collab.clearBoardLocal(roomId)))
+            }
+
+            "createDoc" -> {
+                val docId = (call.argument<String>("docId") ?: "").trim()
+                val title = call.argument<String>("title") ?: "Untitled"
+                val ln = localNet
+                if (ln == null) {
+                    result.error("unavailable", "engine not ready", null)
+                    return
+                }
+                val id = if (docId.isBlank()) "doc-${java.util.UUID.randomUUID().toString().replace("-", "").take(8)}" else docId
+                val doc = ln.collab.ensureDoc(id, title)
+                if (doc != null) {
+                    result.success(mapOf("docId" to doc.docId, "title" to doc.title, "rev" to doc.rev, "text" to doc.text))
+                } else {
+                    result.error("bad_args", "invalid docId", null)
+                }
+            }
+
+            "editDoc" -> {
+                val docId = call.argument<String>("docId") ?: ""
+                val text = call.argument<String>("text")
+                if (text == null) {
+                    result.error("bad_args", "text required", null)
+                    return
+                }
+                val ln = localNet
+                if (docId.isBlank() || ln == null) {
+                    result.error("bad_args", "docId required", null)
+                    return
+                }
+                val rev = ln.collab.editDocLocal(docId, text)
+                if (rev >= 0) {
+                    result.success(mapOf("docId" to docId, "rev" to rev))
+                } else {
+                    result.error("EDIT_FAILED", "rejected (too large or stale revision)", null)
+                }
+            }
+
+            "getDoc" -> {
+                val docId = call.argument<String>("docId") ?: ""
+                val ln = localNet
+                if (docId.isBlank() || ln == null) {
+                    result.error("bad_args", "docId required", null)
+                    return
+                }
+                val doc = ln.collab.docs[docId]
+                if (doc != null) {
+                    result.success(mapOf("docId" to doc.docId, "title" to doc.title, "rev" to doc.rev, "text" to doc.text))
+                } else {
+                    result.success(null)
+                }
+            }
+
+            "listDocs" -> {
+                result.success(localNet?.collab?.listDocs() ?: emptyList<Map<String, Any?>>())
+            }
+
+            "createPoll" -> {
+                val question = call.argument<String>("question") ?: ""
+                @Suppress("UNCHECKED_CAST")
+                val options = call.argument<List<String>>("options") ?: emptyList()
+                val ln = localNet
+                if (question.isBlank() || options.size < 2 || ln == null) {
+                    result.error("bad_args", "question + 2+ options required", null)
+                    return
+                }
+                val poll = ln.collab.createPollLocal(question, options)
+                if (poll != null) {
+                    result.success(mapOf("pollId" to poll.pollId, "question" to poll.question, "options" to poll.options))
+                } else {
+                    result.error("POLL_FAILED", "could not create poll", null)
+                }
+            }
+
+            "votePoll" -> {
+                val pollId = call.argument<String>("pollId") ?: ""
+                val optionIndex = call.argument<Number>("optionIndex")?.toInt() ?: -1
+                val ln = localNet
+                if (pollId.isBlank() || ln == null) {
+                    result.error("bad_args", "pollId required", null)
+                    return
+                }
+                result.success(mapOf("accepted" to ln.collab.voteLocal(pollId, optionIndex)))
+            }
+
+            "getPolls" -> {
+                result.success(localNet?.collab?.pollsSnapshotData() ?: emptyList<Map<String, Any?>>())
+            }
+
+            // ------------- LocalNet Phase 4: app distribution -------------
+
+            "getLocalApps" -> {
+                result.success(apps?.localApps()?.map { it.toMap() } ?: emptyList<Map<String, Any?>>())
+            }
+
+            "getHostApps" -> {
+                val hostname = call.argument<String>("hostname") ?: ""
+                val repo = apps
+                if (hostname.isBlank() || repo == null) {
+                    result.error("bad_args", "hostname required", null)
+                    return
+                }
+                // Blocking HTTP listing -> run off the main thread
+                workerScope.launch {
+                    val list = try {
+                        repo.hostApps(hostname).map { it.toMap() }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "getHostApps($hostname) failed: ${e.message}")
+                        emptyList<Map<String, Any?>>()
+                    }
+                    mainHandler.post { result.success(list) }
+                }
+            }
+
+            "installApk" -> {
+                val fileId = call.argument<String>("fileId") ?: ""
+                val repo = apps
+                if (fileId.isBlank() || repo == null) {
+                    result.error("bad_args", "fileId required", null)
+                    return
+                }
+                val path = repo.downloadedPath(fileId)
+                    ?: repo.localApps().firstOrNull { it.fileId == fileId }
+                        ?.let { localNet?.sharedOriginPaths?.get(fileId) }
+                if (path == null) {
+                    result.error("NOT_DOWNLOADED", "APK not available locally", null)
+                    return
+                }
+                result.success(mapOf("launched" to com.meshnet.meshnet_app.localnet.apps.ApkInstaller.install(context, path)))
+            }
+
+            // ------------- LocalNet Phase 5: internet gateway -------------
+
+            "startInternetGateway" -> {
+                val ln = localNet
+                if (ln == null) {
+                    result.error("unavailable", "engine not ready", null)
+                    return
+                }
+                val port = call.argument<Number>("port")?.toInt() ?: 0
+                val bound = ln.startGateway(port)
+                if (bound > 0) {
+                    result.success(mapOf("running" to true, "port" to bound))
+                } else {
+                    result.error("GATEWAY_FAILED", "could not start proxy server", null)
+                }
+            }
+
+            "stopInternetGateway" -> {
+                localNet?.stopGateway()
+                result.success(mapOf("running" to false))
+            }
+
+            "getGateways" -> {
+                result.success(localNet?.gatewaysSnapshot() ?: emptyList<Map<String, Any?>>())
+            }
+
+            "testGateway" -> {
+                val hostname = call.argument<String>("hostname") ?: ""
+                val ln = localNet
+                if (hostname.isBlank() || ln == null) {
+                    result.error("bad_args", "hostname required", null)
+                    return
+                }
+                // Blocking HTTP probe -> run off the main thread
+                workerScope.launch {
+                    val probe = try {
+                        ln.probeGateway(hostname)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "testGateway($hostname) failed: ${e.message}")
+                        null
+                    }
+                    mainHandler.post { result.success(probe) }
+                }
+            }
+
+            // ------------- LocalNet Phase 6: RBAC, Emergency, Search -------------
+
+            "sendEmergencyAlert" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val level = call.argument<Int>("level") ?: 1
+                val title = call.argument<String>("title") ?: ""
+                val message = call.argument<String>("message") ?: ""
+                val location = call.argument<String>("location")
+                val coordinates = call.argument<String>("coordinates")
+                val ttlMinutes = call.argument<Number>("ttlMinutes")?.toInt() ?: 60
+                val requiresAck = call.argument<Boolean>("requiresAck") ?: true
+                val alertLevel = com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.AlertLevel.fromPriority(level)
+                val alert = ln.sendEmergencyAlert(alertLevel, title, message, location, coordinates, ttlMinutes, requiresAck)
+                result.success(mapOf(
+                    "alertId" to alert.alertId,
+                    "senderId" to alert.senderId,
+                    "level" to alert.level.name,
+                    "title" to alert.title,
+                    "message" to alert.message,
+                    "expiresAtMs" to alert.expiresAtMs,
+                ))
+            }
+
+            "acknowledgeEmergency" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val alertId = call.argument<String>("alertId") ?: ""
+                if (alertId.isBlank()) { result.error("bad_args", "alertId required", null); return }
+                ln.acknowledgeEmergency(alertId)
+                result.success(mapOf("acknowledged" to true))
+            }
+
+            "cancelEmergency" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val alertId = call.argument<String>("alertId") ?: ""
+                if (alertId.isBlank()) { result.error("bad_args", "alertId required", null); return }
+                val ok = ln.cancelEmergencyAlert(alertId)
+                result.success(mapOf("cancelled" to ok))
+            }
+
+            "getEmergencies" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val alerts = ln.getActiveEmergencies().map { a ->
+                    mapOf(
+                        "alertId" to a.alertId,
+                        "senderId" to a.senderId,
+                        "senderName" to a.senderName,
+                        "level" to a.level.name,
+                        "title" to a.title,
+                        "message" to a.message,
+                        "location" to a.location,
+                        "coordinates" to a.coordinates,
+                        "expiresAtMs" to a.expiresAtMs,
+                        "requiresAck" to a.requiresAck,
+                        "metadata" to a.metadata,
+                    )
+                }
+                result.success(alerts)
+            }
+
+            "setDeviceRole" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val deviceId = call.argument<String>("deviceId") ?: ""
+                val roleStr = call.argument<String>("role") ?: ""
+                if (deviceId.isBlank() || roleStr.isBlank()) { result.error("bad_args", "deviceId and role required", null); return }
+                val role = com.meshnet.meshnet_app.localnet.rbac.Role.fromString(roleStr)
+                ln.setDeviceRole(deviceId, role)
+                result.success(mapOf("ok" to true))
+            }
+
+            "getDeviceRole" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val deviceId = call.argument<String>("deviceId") ?: ""
+                if (deviceId.isBlank()) { result.error("bad_args", "deviceId required", null); return }
+                val role = ln.getDeviceRole(deviceId)
+                result.success(mapOf("deviceId" to deviceId, "role" to role.name))
+            }
+
+            "setResourceRole" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val resourceType = call.argument<String>("resourceType") ?: ""
+                val resourceId = call.argument<String>("resourceId") ?: ""
+                val deviceId = call.argument<String>("deviceId") ?: ""
+                val roleStr = call.argument<String>("role") ?: ""
+                if (resourceType.isBlank() || resourceId.isBlank() || deviceId.isBlank() || roleStr.isBlank()) {
+                    result.error("bad_args", "all fields required", null); return
+                }
+                val role = com.meshnet.meshnet_app.localnet.rbac.Role.fromString(roleStr)
+                ln.setResourceRole(resourceType, resourceId, deviceId, role)
+                result.success(mapOf("ok" to true))
+            }
+
+            "checkPermission" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val deviceId = call.argument<String>("deviceId") ?: ""
+                val permissionKey = call.argument<String>("permission") ?: ""
+                val resourceType = call.argument<String>("resourceType")
+                val resourceId = call.argument<String>("resourceId")
+                if (deviceId.isBlank() || permissionKey.isBlank()) { result.error("bad_args", "deviceId and permission required", null); return }
+                val permission = com.meshnet.meshnet_app.localnet.rbac.Permission.fromKey(permissionKey)
+                if (permission == null) { result.error("bad_args", "unknown permission: $permissionKey", null); return }
+                val hasPerm = if (resourceType != null && resourceId != null) {
+                    ln.hasPermission(deviceId, resourceType, resourceId, permission)
+                } else {
+                    ln.hasPermission(deviceId, permission)
+                }
+                result.success(mapOf("hasPermission" to hasPerm))
+            }
+
+            "banDevice" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val deviceId = call.argument<String>("deviceId") ?: ""
+                if (deviceId.isBlank()) { result.error("bad_args", "deviceId required", null); return }
+                ln.banDevice(deviceId)
+                result.success(mapOf("banned" to true))
+            }
+
+            "unbanDevice" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val deviceId = call.argument<String>("deviceId") ?: ""
+                if (deviceId.isBlank()) { result.error("bad_args", "deviceId required", null); return }
+                ln.unbanDevice(deviceId)
+                result.success(mapOf("unbanned" to true))
+            }
+
+            "searchLocal" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val terms = (call.argument<List<String>>("terms") ?: emptyList<String>()).filter { it.isNotBlank() }
+                val resourceTypes = (call.argument<List<String>>("resourceTypes") ?: emptyList<String>()).toSet()
+                val maxResults = call.argument<Number>("maxResults")?.toInt() ?: 20
+                if (terms.isEmpty()) { result.success(emptyList<Any>()); return }
+                val results = ln.searchLocal(terms, resourceTypes, maxResults).map { r ->
+                    mapOf(
+                        "docId" to r.docId,
+                        "resourceType" to r.resourceType,
+                        "ownerId" to r.ownerId,
+                        "title" to r.title,
+                        "snippet" to r.snippet,
+                        "score" to r.score,
+                        "metadata" to r.metadata,
+                    )
+                }
+                result.success(results)
+            }
+
+            "searchDistributed" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val terms = (call.argument<List<String>>("terms") ?: emptyList<String>()).filter { it.isNotBlank() }
+                val resourceTypes = (call.argument<List<String>>("resourceTypes") ?: emptyList<String>()).toSet()
+                val maxResults = call.argument<Number>("maxResults")?.toInt() ?: 20
+                if (terms.isEmpty()) { result.success(emptyList<Any>()); return }
+                val queryId = ln.searchDistributed(terms, resourceTypes, maxResults) { res ->
+                    mainHandler.post { emit("searchResult", mapOf(
+                        "queryId" to res.queryId,
+                        "responderId" to res.responderId,
+                        "results" to res.results.map { r ->
+                            mapOf(
+                                "docId" to r.docId,
+                                "resourceType" to r.resourceType,
+                                "ownerId" to r.ownerId,
+                                "title" to r.title,
+                                "snippet" to r.snippet,
+                                "score" to r.score,
+                                "metadata" to r.metadata,
+                            )
+                        },
+                        "totalHits" to res.totalHits,
+                        "tookMs" to res.tookMs,
+                    ))}
+                }
+                result.success(mapOf("queryId" to queryId))
+            }
+
+            "indexContent" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val resourceType = call.argument<String>("resourceType") ?: ""
+                val resourceId = call.argument<String>("resourceId") ?: ""
+                val title = call.argument<String>("title") ?: ""
+                val content = call.argument<String>("content") ?: ""
+                val tags = call.argument<List<String>>("tags") ?: emptyList()
+                val metadata = (call.argument<Map<String, String>>("metadata") ?: emptyMap())
+                if (resourceType.isBlank() || resourceId.isBlank() || title.isBlank() || content.isBlank()) {
+                    result.error("bad_args", "resourceType, resourceId, title, content required", null); return
+                }
+                val docId = ln.indexContent(resourceType, resourceId, title, content, tags, metadata)
+                result.success(mapOf("docId" to docId))
+            }
+
+            "removeFromIndex" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                val docId = call.argument<String>("docId") ?: ""
+                if (docId.isBlank()) { result.error("bad_args", "docId required", null); return }
+                ln.removeFromIndex(docId)
+                result.success(mapOf("removed" to true))
+            }
+
+            "getSearchStats" -> {
+                val ln = localNet ?: run { result.error("unavailable", "engine not ready", null); return }
+                result.success(ln.getSearchStats())
+            }
+
             "markMessagesRead" -> {
                 val deviceId = call.argument<String>("deviceId")
                 if (deviceId == null) {
@@ -419,6 +964,24 @@ class MeshEngine(private val context: Context) {
         transportManager.setRouteListener { frame ->
             routing.handleIncomingFrame(frame)
         }
+        // LocalNet (Phase 1+2): decentralized DNS, offline HTTP, file sharing
+        localNet = LocalNetService(
+            selfDeviceId = identity.deviceId(),
+            selfDisplayName = identity.displayName(),
+            routing = routing,
+            baseDir = java.io.File(context.filesDir, "localnet"),
+        ).also { ln ->
+            ln.addListener(localNetListener)
+            ln.collab.addListener(collabListener)
+            routing.dnsHandler = ln
+            routing.collabHandler = ln.collab
+            routing.gatewayHandler = ln
+        }
+        // Phase 4: APK repository on top of the file-sharing transport
+        apps = com.meshnet.meshnet_app.localnet.apps.AppRepository(
+            requireNotNull(localNet),
+            com.meshnet.meshnet_app.localnet.apps.PackageManagerApkExtractor(context),
+        )
         // P5: restore undelivered messages from disk on app restart
         restoreOutbox()
         Log.i(TAG, "MeshEngine init: ${identity.displayName()} (${identity.deviceId()})")
@@ -587,6 +1150,164 @@ class MeshEngine(private val context: Context) {
         }
     }
 
+    /** LocalNet events -> Flutter. */
+    private val localNetListener = object : LocalNetService.Listener {        override fun onHostDiscovered(hostname: String, deviceId: String) {
+            emit("dnsHostDiscovered", mapOf(
+                "hostname" to hostname,
+                "fqdn" to "$hostname.mesh",
+                "deviceId" to deviceId,
+            ))
+        }
+
+        override fun onHostResolved(hostname: String, deviceId: String?) {
+            emit("dnsHostResolved", mapOf(
+                "hostname" to hostname,
+                "deviceId" to (deviceId ?: ""),
+                "found" to (deviceId != null),
+            ))
+        }
+
+        override fun onHttpServerStateChanged(running: Boolean, port: Int) {
+            emit("httpServerState", mapOf("running" to running, "port" to port))
+        }
+
+        override fun onFileSyncProgress(fileId: String, fileName: String, have: Int, total: Int, state: String, filePath: String) {
+            emit("fileSyncProgress", mapOf(
+                "fileId" to fileId,
+                "fileName" to fileName,
+                "have" to have,
+                "total" to total,
+                "state" to state,
+                "filePath" to filePath,
+            ))
+            // Phase 4: a finished APK download becomes an installable app
+            if (state == "done") {
+                val meta = apps?.onDownloadCompleted(fileId, filePath)
+                if (meta != null) {
+                    emit("appReady", meta.toMap())
+                }
+            }
+        }
+
+        override fun onGatewayStateChanged(running: Boolean, port: Int) {
+            emit("gatewayState", mapOf("running" to running, "port" to port))
+        }
+
+        override fun onGatewayDiscovered(hostname: String, deviceId: String) {
+            emit("gatewayDiscovered", mapOf("hostname" to hostname, "deviceId" to deviceId))
+        }
+
+        // Phase 6: RBAC
+        override fun onRoleChanged(deviceId: String, resourceType: String, resourceId: String, oldRole: com.meshnet.meshnet_app.localnet.rbac.Role?, newRole: com.meshnet.meshnet_app.localnet.rbac.Role) {
+            emit("roleChanged", mapOf(
+                "deviceId" to deviceId,
+                "resourceType" to resourceType,
+                "resourceId" to resourceId,
+                "oldRole" to oldRole?.name,
+                "newRole" to newRole.name,
+            ))
+        }
+
+        // Phase 6: Emergency
+        override fun onEmergencyAlert(alert: com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.EmergencyAlert) {
+            emit("emergencyAlert", mapOf(
+                "alertId" to alert.alertId,
+                "senderId" to alert.senderId,
+                "senderName" to alert.senderName,
+                "level" to alert.level.name,
+                "title" to alert.title,
+                "message" to alert.message,
+                "location" to alert.location,
+                "coordinates" to alert.coordinates,
+                "expiresAtMs" to alert.expiresAtMs,
+                "requiresAck" to alert.requiresAck,
+                "metadata" to alert.metadata,
+            ))
+        }
+
+        override fun onEmergencyAck(alertId: String, ackerId: String, totalAcks: Int) {
+            emit("emergencyAck", mapOf(
+                "alertId" to alertId,
+                "ackerId" to ackerId,
+                "totalAcks" to totalAcks,
+            ))
+        }
+
+        override fun onEmergencyCancelled(alertId: String, senderId: String) {
+            emit("emergencyCancelled", mapOf(
+                "alertId" to alertId,
+                "senderId" to senderId,
+            ))
+        }
+
+        // Phase 6: Search
+        override fun onSearchResult(result: com.meshnet.meshnet_app.localnet.search.SearchIndex.SearchResult) {
+            emit("searchResult", mapOf(
+                "queryId" to result.queryId,
+                "responderId" to result.responderId,
+                "results" to result.results.map { r ->
+                    mapOf(
+                        "docId" to r.docId,
+                        "resourceType" to r.resourceType,
+                        "ownerId" to r.ownerId,
+                        "title" to r.title,
+                        "snippet" to r.snippet,
+                        "score" to r.score,
+                        "metadata" to r.metadata,
+                    )
+                },
+                "totalHits" to result.totalHits,
+                "tookMs" to result.tookMs,
+            ))
+        }
+    }
+
+    /** Phase 3 collab events -> Flutter. */
+    private val collabListener = object : com.meshnet.meshnet_app.localnet.collab.CollabService.Listener {
+        override fun onStrokeAdded(roomId: String, stroke: com.meshnet.meshnet_app.localnet.collab.WhiteboardState.Stroke) {
+            emit("collabStroke", mapOf(
+                "roomId" to roomId,
+                "strokeId" to stroke.strokeId,
+                "authorId" to stroke.authorId,
+                "color" to stroke.color,
+                "width" to stroke.width,
+                "points" to stroke.points.map { listOf(it.x, it.y) },
+            ))
+        }
+
+        override fun onBoardCleared(roomId: String) {
+            emit("collabBoardCleared", mapOf("roomId" to roomId))
+        }
+
+        override fun onDocChanged(docId: String, rev: Int, text: String, editorId: String) {
+            emit("docUpdated", mapOf(
+                "docId" to docId,
+                "rev" to rev,
+                "text" to text,
+                "editorId" to editorId,
+            ))
+        }
+
+        override fun onPollCreated(pollId: String) {
+            emit("pollUpdated", mapOf("pollId" to pollId, "reason" to "created"))
+        }
+
+        override fun onPollUpdated(pollId: String) {
+            emit("pollUpdated", mapOf("pollId" to pollId, "reason" to "vote"))
+        }
+    }
+
+    private fun manifestToMap(m: com.meshnet.meshnet_app.localnet.chunk.FileManifest): Map<String, Any?> = mapOf(
+        "fileId" to m.fileId,
+        "fileName" to m.fileName,
+        "fileSize" to m.fileSize,
+        "mimeType" to m.mimeType,
+        "chunkCount" to m.chunks.size,
+        "chunkSize" to m.chunkSize,
+        "createdAtMs" to m.createdAtMs,
+        "senderDeviceId" to m.senderDeviceId,
+    )
+
     /** Start all transports. */
     fun start(): Boolean {
         if (running) return true
@@ -594,6 +1315,7 @@ class MeshEngine(private val context: Context) {
         emit("engineState", mapOf("state" to "starting"))
         try {
             transportManager.start()
+            localNet?.start()
             running = true
             startWorker()
             emit("engineState", mapOf("state" to "running"))
@@ -618,6 +1340,7 @@ class MeshEngine(private val context: Context) {
                     routing.expirePending()
                     routing.sendPing()
                     presenceSweep()
+                    localNet?.periodicWork()
                 } catch (e: Exception) {
                     Log.w(TAG, "Worker iteration error: ${e.message}")
                 }
@@ -641,6 +1364,7 @@ class MeshEngine(private val context: Context) {
     fun stop() {
         if (!::transportManager.isInitialized) return
         workerJob?.cancel()
+        try { localNet?.stop() } catch (_: Exception) {}
         try { transportManager.stop() } catch (_: Exception) {}
         running = false
         emit("engineState", mapOf("state" to "stopped"))

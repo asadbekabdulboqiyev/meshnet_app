@@ -26,7 +26,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty || _selectedPeers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nomi va a\'zolarni tanlang')),
+        const SnackBar(content: Text('Please enter a name and select members')),
       );
       return;
     }
@@ -38,7 +38,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xato: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     } finally {
@@ -52,7 +52,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Guruh yaratish'),
+        title: const Text('Create Group'),
         actions: [
           TextButton(
             onPressed: _isLoading ? null : _create,
@@ -63,7 +63,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : Text(
-                    'Yaratish',
+                    'Create',
                     style: TextStyle(color: MeshAppTheme.primary, fontWeight: FontWeight.bold),
                   ),
           ),
@@ -77,7 +77,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
               controller: _nameController,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Guruh nomi',
+                hintText: 'Group name',
                 hintStyle: TextStyle(color: MeshAppTheme.textDim),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -95,7 +95,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'A\'zolarni tanlang:',
+                'Select members:',
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ),
@@ -107,7 +107,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                 if (peers.isEmpty) {
                   return const Center(
                     child: Text(
-                      'Hali peerlar yo\'q',
+                      'No peers yet',
                       style: TextStyle(color: Colors.white54),
                     ),
                   );
@@ -158,7 +158,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Xato: $e')),
+              error: (e, _) => Center(child: Text('Error: $e')),
             ),
           ),
         ],

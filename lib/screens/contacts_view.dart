@@ -104,6 +104,7 @@ class _ContactsViewState extends ConsumerState<ContactsView> {
           _SectionHeader(title: 'Groups', count: groups.length),
           ...groups.map((g) => _GroupTile(
             group: g,
+            unreadCount: _unreadCounts[g['groupId'] as String? ?? ''] ?? 0,
             onTap: () {
               final meshGroup = MeshGroup.fromMap(g);
               Navigator.of(context).push(
@@ -178,9 +179,10 @@ class _SectionHeader extends StatelessWidget {
 // ── Group tile ──
 
 class _GroupTile extends StatelessWidget {
-  const _GroupTile({required this.group, this.onTap});
+  const _GroupTile({required this.group, this.onTap, this.unreadCount = 0});
   final Map<String, dynamic> group;
   final VoidCallback? onTap;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
@@ -196,14 +198,42 @@ class _GroupTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: MeshAppTheme.info.withValues(alpha: 0.15),
-                child: Icon(
-                  Icons.group_rounded,
-                  color: MeshAppTheme.info,
-                  size: 22,
-                ),
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: MeshAppTheme.info.withValues(alpha: 0.15),
+                    child: Icon(
+                      Icons.group_rounded,
+                      color: MeshAppTheme.info,
+                      size: 22,
+                    ),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          color: MeshAppTheme.error,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: MeshAppTheme.bgDeep, width: 2),
+                        ),
+                        child: Center(
+                          child: Text(
+                            unreadCount > 99 ? '99+' : '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 14),
               Expanded(
