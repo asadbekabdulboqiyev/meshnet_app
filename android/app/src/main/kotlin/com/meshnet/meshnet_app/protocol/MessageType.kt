@@ -26,12 +26,14 @@ enum class MessageType(val code: Byte) {
     DNS_ANNOUNCE(0x60),
     DNS_QUERY(0x61),
     DNS_RESPONSE(0x62),
-    // LocalNet (Phase 3): collaboration over mesh
+    // LocalNet Phase 3: collaboration over mesh
     BOARD_STROKE(0x63),
     DOC_EDIT(0x64),
     POLL_CREATE(0x65),
     POLL_VOTE(0x66),
     BOARD_CLEAR(0x67),
+    // LocalNet: full doc state broadcast (creation + gap fill)
+    DOC_ANNOUNCE(0x76),
     // LocalNet (Phase 5): internet gateway presence over mesh
     VPN_GW_ANNOUNCE(0x68),
     // LocalNet (Phase 6): emergency broadcast
@@ -41,7 +43,11 @@ enum class MessageType(val code: Byte) {
     // LocalNet (Phase 6): mesh-wide search
     SEARCH_QUERY(0x73),
     SEARCH_RESULT(0x74),
-    SEARCH_INDEX_SYNC(0x75);
+    SEARCH_INDEX_SYNC(0x75),
+    // RBAC / CRDT wire protocol
+    ROLE_GRANT(0x77),
+    SIGN_KEY(0x78),
+    DOC_OPS(0x79);
 
     companion object {
         fun fromCode(code: Byte): MessageType? = entries.firstOrNull { it.code == code }

@@ -1,0 +1,123 @@
+Categories:
+  - Communication
+  - Internet
+  - System
+  - Network
+
+License: AGPL-3.0-or-later
+
+WebSite: https://github.com/asadbekabdulboqiyev/meshnet_app
+SourceCode: https://github.com/asadbekabdulboqiyev/meshnet_app
+IssueTracker: https://github.com/asadbekabdulboqiyev/meshnet_app/issues
+Translation: https://hosted.weblate.org/projects/meshnet/meshnet-app/
+Donate: https://github.com/sponsors/asadbekabdulboqiyev
+Flattr: https://flattr.com/@meshnet
+
+Description: |
+  MeshNet is an offline-first, peer-to-peer mesh networking app for Android.
+  It creates a decentralized communication layer where devices connect directly
+  via Bluetooth Low Energy (BLE) and Wi-Fi Direct — no internet, no SIM card,
+  no central server required.
+
+  ## Core Features
+
+  **Messaging & Chat**
+  - End-to-end encrypted 1:1 and group chats
+  - Double Ratchet (X25519 + ChaCha20-Poly1305) with forward secrecy
+  - QR code pairing for out-of-band trust establishment
+  - Read receipts, delivery reports, typing indicators
+  - Voice messages (Opus codec)
+  - File sharing (images, documents, any file type)
+
+  **LocalNet Platform (Offline LAN)**
+  - Decentralized DNS (.mesh hostnames) — no central server
+  - Built-in HTTP server (port 8080) — serves over Wi-Fi Direct
+  - Distributed file system — chunked, deduplicated, resumable sync
+  - Real-time collaboration: whiteboard, collaborative notes, polls
+  - Offline App Store — share and install APKs over the mesh
+  - Internet Gateway — HTTP/CONNECT proxy via mesh peers
+
+  **Networking**
+  - Dual transport: BLE (long-range, low power) + Wi-Fi Direct (high throughput)
+  - Multi-hop relay (up to 4 hops)
+  - Store-and-forward for offline peers
+  - Network topology visualization
+
+  **Security & Privacy**
+  - E2E encryption by default (X25519 + ChaCha20-Poly1305)
+  - Double Ratchet forward secrecy
+  - QR code pairing for trust-on-first-use
+  - No central servers, no metadata collection
+  - RBAC access control for mesh resources
+
+RepoType: git
+Repo: https://github.com/asadbekabdulboqiyev/meshnet_app
+
+Builds:
+  - versionName: '1.0.0'
+    versionCode: 1
+    commit: v1.0.0
+    subdir: android
+    gradle:
+      - yes
+    output: app/build/outputs/apk/release/app-release.apk
+    target: android-34
+    ndkVersion: 26.1.10909125
+    ndkPath: $ANDROID_NDK_HOME
+    sdk: android-34
+    flavorDimensions: flutter
+    flavors:
+      - release
+    prebuild:
+      - flutter pub get
+      - flutter build apk --release --no-tree-shake-icons
+    outputPaths:
+      - app/build/outputs/apk/release/app-release.apk
+    files:
+      - app/build/outputs/apk/release/app-release.apk
+    verify:
+      - sha256
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 1.0.0
+CurrentVersionCode: 1
+
+MaintainerNotes: |
+  MeshNet is a complete offline P2P mesh networking platform.
+  Built with Flutter (Dart) for UI and Kotlin for native mesh engine.
+  All networking, crypto, and routing implemented in Kotlin native.
+  No proprietary services or cloud dependencies.
+
+Maintainer: Asadbek Abdulboqiyev <asadbek@example.com>
+
+PublicKey: |
+  -----BEGIN PUBLIC KEY-----
+  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+  -----END PUBLIC KEY-----
+
+RequiresRoot: false
+SupportsAndroid10Plus: true
+RequiresInternet: false
+UsesNetwork: true
+UsesBluetooth: true
+UsesLocation: true
+UsesWifi: true
+UsesMicrophone: true
+UsesCamera: false
+UsesSensors: false
+UsesNfc: false
+UsesVibration: true
+UsesWakeLock: true
+UsesStorage: true
+
+# Reproducible build configuration
+BuildReproducibility:
+  # All builds are fully reproducible
+  SourceDateEpoch: true
+  NoTimestamps: true
+  DeterministicOutput: true
+  NdkVersion: 26.1.10909125
+  GradleVersion: 8.14
+  JdkVersion: 21
+  NdkPath: $ANDROID_NDK_HOME

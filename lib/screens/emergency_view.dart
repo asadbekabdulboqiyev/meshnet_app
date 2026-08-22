@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:meshnet_app/core/mesh_service.dart';
-import 'package:meshnet_app/theme/app_theme.dart';
 
 class EmergencyView extends ConsumerStatefulWidget {
   const EmergencyView({super.key});
@@ -122,7 +121,7 @@ class _EmergencyViewState extends ConsumerState<EmergencyView> {
                   Text('Send Emergency Alert', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    value: _selectedLevel,
+                    initialValue: _selectedLevel,
                     decoration: const InputDecoration(labelText: 'Level', border: OutlineInputBorder()),
                     items: const [
                       DropdownMenuItem(value: 1, child: Text('Info (Blue)')),
@@ -279,10 +278,10 @@ class _AlertCard extends ConsumerWidget {
   String _formatDuration(int ms) {
     if (ms <= 0) return 'Expired';
     final s = ms ~/ 1000;
-    if (s < 60) return '\${s}s';
+    if (s < 60) return '${s}s';
     final m = s ~/ 60;
-    if (m < 60) return '\${m}m \${s % 60}s';
+    if (m < 60) return '${m}m ${s % 60}s';
     final h = m ~/ 60;
-    return '\${h}h \${m % 60}m';
+    return '${h}h ${m % 60}m';
   }
 }

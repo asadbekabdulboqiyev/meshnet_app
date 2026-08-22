@@ -1,5 +1,4 @@
 import 'dart:ffi';
-import 'dart:io';
 
 /// MeshNet FFI — Dart bindings for native crypto bridge.
 ///
@@ -14,6 +13,8 @@ import 'dart:io';
 /// }
 /// ```
 class MeshFFIBridge {
+  // Assigned on load; read once the C bridge exposes real functions.
+  // ignore: unused_field
   static DynamicLibrary? _lib;
   static bool _loaded = false;
 

@@ -6,75 +6,75 @@ void main() {
   group('MeshAppTheme color constants', () {
     test('primary color is defined', () {
       expect(MeshAppTheme.primary, isNotNull);
-      expect(MeshAppTheme.primary.value, 0xFF4E8CFF);
+      expect(MeshAppTheme.primary.toARGB32(), 0xFF4E8CFF);
     });
 
     test('success color is defined', () {
-      expect(MeshAppTheme.success.value, 0xFF3DDC84);
+      expect(MeshAppTheme.success.toARGB32(), 0xFF3DDC84);
     });
 
     test('warning color is defined', () {
-      expect(MeshAppTheme.warning.value, 0xFFFFB74D);
+      expect(MeshAppTheme.warning.toARGB32(), 0xFFFFB74D);
     });
 
     test('error color is defined', () {
-      expect(MeshAppTheme.error.value, 0xFFFF5252);
+      expect(MeshAppTheme.error.toARGB32(), 0xFFFF5252);
     });
 
     test('info color is defined', () {
-      expect(MeshAppTheme.info.value, 0xFF7C8AFF);
+      expect(MeshAppTheme.info.toARGB32(), 0xFF7C8AFF);
     });
 
     test('bgDeep color is defined', () {
-      expect(MeshAppTheme.bgDeep.value, 0xFF0A0E1A);
+      expect(MeshAppTheme.bgDeep.toARGB32(), 0xFF0A0E1A);
     });
 
     test('bgSurface color is defined', () {
-      expect(MeshAppTheme.bgSurface.value, 0xFF111827);
+      expect(MeshAppTheme.bgSurface.toARGB32(), 0xFF111827);
     });
 
     test('bgCard color is defined', () {
-      expect(MeshAppTheme.bgCard.value, 0xFF1A2338);
+      expect(MeshAppTheme.bgCard.toARGB32(), 0xFF1A2338);
     });
 
     test('bgElevated color is defined', () {
-      expect(MeshAppTheme.bgElevated.value, 0xFF212D45);
+      expect(MeshAppTheme.bgElevated.toARGB32(), 0xFF212D45);
     });
 
     test('bgInput color is defined', () {
-      expect(MeshAppTheme.bgInput.value, 0xFF0D1220);
+      expect(MeshAppTheme.bgInput.toARGB32(), 0xFF0D1220);
     });
 
     test('bgNav color is defined', () {
-      expect(MeshAppTheme.bgNav.value, 0xFF0E1322);
+      expect(MeshAppTheme.bgNav.toARGB32(), 0xFF0E1322);
     });
 
     test('textWhite color is defined', () {
-      expect(MeshAppTheme.textWhite.value, 0xFFF0F4F8);
+      expect(MeshAppTheme.textWhite.toARGB32(), 0xFFF0F4F8);
     });
 
     test('textGray color is defined', () {
-      expect(MeshAppTheme.textGray.value, 0xFF8899B0);
+      expect(MeshAppTheme.textGray.toARGB32(), 0xFF8899B0);
     });
 
     test('textDim color is defined', () {
-      expect(MeshAppTheme.textDim.value, 0xFF556680);
+      expect(MeshAppTheme.textDim.toARGB32(), 0xFF556680);
     });
 
     test('border color is defined', () {
-      expect(MeshAppTheme.border.value, 0xFF222E44);
+      expect(MeshAppTheme.border.toARGB32(), 0xFF222E44);
     });
 
     test('borderLight color is defined', () {
-      expect(MeshAppTheme.borderLight.value, 0xFF2A3655);
+      expect(MeshAppTheme.borderLight.toARGB32(), 0xFF2A3655);
     });
 
     test('sentBubble color is defined', () {
-      expect(MeshAppTheme.sentBubble.value, 0xFF4E8CFF);
+      expect(MeshAppTheme.sentBubble.toARGB32(), 0xFF4E8CFF);
     });
 
     test('receivedBubble color is defined', () {
-      expect(MeshAppTheme.receivedBubble.value, 0xFF1A2338);
+      expect(MeshAppTheme.receivedBubble.toARGB32(), 0xFF1A2338);
     });
 
     test('primary and sentBubble are the same color', () {

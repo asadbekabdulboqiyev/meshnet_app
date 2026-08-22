@@ -117,9 +117,10 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
     if (text.isEmpty) return;
     _controller.clear();
 
+    final optimisticId = 'self:${DateTime.now().millisecondsSinceEpoch}';
     setState(() {
       _messages.insert(0, ChatMessage(
-        messageId: 'self:${DateTime.now().millisecondsSinceEpoch}',
+        messageId: optimisticId,
         text: text,
         type: MessageType.groupText,
         fromMe: true,
@@ -129,16 +130,33 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
     });
 
     try {
-      await ref.read(meshServiceProvider).sendGroupMessage(widget.group.groupId, text);
+      final msgId = await ref
+          .read(meshServiceProvider)
+          .sendGroupMessage(widget.group.groupId, text);
       if (mounted) {
         setState(() {
-          _messages.first = _messages.first.copyWith(status: MessageStatus.sent);
+          final idx =
+              _messages.indexWhere((m) => m.messageId == optimisticId);
+          if (idx != -1) {
+            _messages[idx] = _messages[idx].copyWith(
+              messageId:
+                  (msgId != null && msgId.isNotEmpty) ? msgId : optimisticId,
+              status:
+                  msgId != null ? MessageStatus.sent : MessageStatus.failed,
+            );
+          }
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.first = _messages.first.copyWith(status: MessageStatus.failed);
+          final idx =
+              _messages.indexWhere((m) => m.messageId == optimisticId);
+          if (idx != -1) {
+            _messages[idx] = _messages[idx].copyWith(
+              status: MessageStatus.failed,
+            );
+          }
         });
       }
     }
@@ -146,12 +164,18 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
 
   void _retry(ChatMessage msg, {bool find = true}) async {
     try {
-      await ref.read(meshServiceProvider).sendGroupMessage(widget.group.groupId, msg.text);
+      final msgId = await ref
+          .read(meshServiceProvider)
+          .sendGroupMessage(widget.group.groupId, msg.text);
       if (mounted) {
         setState(() {
           final idx = _messages.indexOf(msg);
           if (idx != -1) {
-            _messages[idx] = msg.copyWith(status: MessageStatus.pending);
+            _messages[idx] = msg.copyWith(
+              messageId:
+                  (msgId != null && msgId.isNotEmpty) ? msgId : msg.messageId,
+              status: msgId != null ? MessageStatus.pending : MessageStatus.failed,
+            );
           }
         });
       }
@@ -160,7 +184,9 @@ class _GroupChatViewState extends ConsumerState<GroupChatView> {
         setState(() {
           final idx = _messages.indexOf(msg);
           if (idx != -1) {
-            _messages[idx] = msg.copyWith(status: MessageStatus.failed);
+            _messages[idx] = msg.copyWith(
+              status: MessageStatus.failed,
+            );
           }
         });
       }

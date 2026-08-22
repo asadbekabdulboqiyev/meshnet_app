@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 
 class GraphNode {
@@ -80,7 +79,7 @@ class NetworkMapPainter extends CustomPainter {
 
       final paint = Paint()
         ..strokeWidth = 1.0 + (edge.quality / 50)
-        ..color = _qualityColor(edge.quality).withOpacity(0.6)
+        ..color = _qualityColor(edge.quality).withValues(alpha: 0.6)
         ..style = PaintingStyle.stroke;
       canvas.drawLine(
         Offset(edge.from.x, edge.from.y),
@@ -120,7 +119,7 @@ class NetworkMapPainter extends CustomPainter {
 
     if (node.isOnline) {
       final glowPaint = Paint()
-        ..color = color.withOpacity(0.3)
+        ..color = color.withValues(alpha: 0.3)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
       canvas.drawCircle(Offset(node.x, node.y), radius + 8, glowPaint);
     }
@@ -154,7 +153,7 @@ class NetworkMapPainter extends CustomPainter {
 
     if (selectedNode == node) {
       final selectPaint = Paint()
-        ..color = Colors.white.withOpacity(0.3)
+        ..color = Colors.white.withValues(alpha: 0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2;
       canvas.drawCircle(Offset(node.x, node.y), radius + 4, selectPaint);

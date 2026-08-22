@@ -38,7 +38,7 @@ class RoutingEngineExtendedTest {
         val peersFound: MutableList<String> = mutableListOf(),
         val outboxStatus: MutableList<Pair<String, String>> = mutableListOf(),
         val groupMessages: MutableList<Quintuple<String, String, String, String, String>> = mutableListOf(),
-        val voiceMessages: MutableList<Triple<String, ByteArray, String>> = mutableListOf(),
+        val voiceMessages: MutableList<Quadruple<String, ByteArray, String, String>> = mutableListOf(),
     ) : RoutingEngine.MessageListener {
         override fun onTextReceived(from: String, message: String, messageId: String) {
             receivedMessages.add(Triple(from, message, messageId))
@@ -68,10 +68,15 @@ class RoutingEngineExtendedTest {
             groupMessages.add(Quintuple(groupId, senderId, message, senderName, messageId))
         }
 
-        override fun onVoiceMessageReceived(senderId: String, audioData: ByteArray, messageId: String) {
-            voiceMessages.add(Triple(senderId, audioData, messageId))
+        override fun onVoiceMessageReceived(senderId: String, audioData: ByteArray, messageId: String, durationMs: Int, codec: String) {
+            voiceMessages.add(Quadruple(senderId, audioData, messageId, codec))
         }
     }
+
+    /** Simple 4-tuple for voice messages */
+    private data class Quadruple<A, B, C, D>(
+        val first: A, val second: B, val third: C, val fourth: D
+    )
 
     /** Simple 5-tuple for group messages */
     private data class Quintuple<A, B, C, D, E>(

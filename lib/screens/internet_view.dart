@@ -231,7 +231,7 @@ class _InternetGatewayViewState extends ConsumerState<InternetGatewayView> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _gateways.where((g) => g['isSelf'] != true).length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final gw = _gateways.where((g) => g['isSelf'] != true).toList()[index];
                 return _GatewayCard(

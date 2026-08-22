@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:meshnet_app/core/mesh_service.dart';
-import 'package:meshnet_app/theme/app_theme.dart';
 
 class SearchView extends ConsumerStatefulWidget {
   const SearchView({super.key});
@@ -74,14 +73,16 @@ class _SearchViewState extends ConsumerState<SearchView> {
 
   void _toggleType(String type) {
     setState(() {
-      if (_selectedTypes.contains(type)) _selectedTypes.remove(type);
-      else _selectedTypes.add(type);
+      if (_selectedTypes.contains(type)) {
+        _selectedTypes.remove(type);
+      } else {
+        _selectedTypes.add(type);
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mesh Search'),

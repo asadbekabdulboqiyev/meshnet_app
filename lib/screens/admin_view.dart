@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:meshnet_app/core/mesh_service.dart';
-import 'package:meshnet_app/theme/app_theme.dart';
 
 class AdminView extends ConsumerStatefulWidget {
   const AdminView({super.key});
@@ -13,7 +12,6 @@ class AdminView extends ConsumerStatefulWidget {
 class _AdminViewState extends ConsumerState<AdminView> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Map<String, dynamic>> _devices = [];
-  List<Map<String, dynamic>> _resources = [];
   final _deviceIdCtrl = TextEditingController();
   final _roleCtrl = TextEditingController();
   final _resourceTypeCtrl = TextEditingController();

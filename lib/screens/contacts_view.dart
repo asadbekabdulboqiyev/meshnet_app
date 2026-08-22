@@ -19,6 +19,8 @@ class ContactsView extends ConsumerStatefulWidget {
 
 class _ContactsViewState extends ConsumerState<ContactsView> {
   Map<String, int> _unreadCounts = {};
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -32,6 +34,12 @@ class _ContactsViewState extends ConsumerState<ContactsView> {
         _loadUnreadCounts();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUnreadCounts() async {
@@ -90,45 +98,94 @@ class _ContactsViewState extends ConsumerState<ContactsView> {
     );
   }
 
-  Widget _buildBody(List<Map<String, dynamic>> peers, AsyncValue<List<Map<String, dynamic>>> groupsAsync) {
+Widget _buildBody(List<Map<String, dynamic>> peers, AsyncValue<List<Map<String, dynamic>>> groupsAsync) {
     final groups = groupsAsync.value ?? [];
     final hasGroups = groups.isNotEmpty;
-    final hasPeers = peers.isNotEmpty;
+    
+    // Filter peers by search query
+    final filteredPeers = peers.where((peer) {
+      if (_searchQuery.isEmpty) return true;
+      final name = (peer['displayName'] as String? ?? '').toLowerCase();
+      final deviceId = (peer['deviceId'] as String? ?? '').toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return name.contains(query) || deviceId.contains(query);
+    }).toList();
+    
+    final hasPeers = filteredPeers.isNotEmpty;
 
     if (!hasGroups && !hasPeers) return _EmptyState();
 
-    return ListView(
-      children: [
-        // ── Groups section ──
-        if (hasGroups) ...[
-          _SectionHeader(title: 'Groups', count: groups.length),
-          ...groups.map((g) => _GroupTile(
-            group: g,
-            unreadCount: _unreadCounts[g['groupId'] as String? ?? ''] ?? 0,
-            onTap: () {
-              final meshGroup = MeshGroup.fromMap(g);
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => GroupChatView(group: meshGroup),
-                ),
-              );
-            },
-          )),
-        ],
-
-        // ── Contacts section ──
-        if (hasPeers) ...[
-          _SectionHeader(title: 'Contacts', count: peers.length),
-          ...List.generate(peers.length, (i) {
-            final peer = peers[i];
-            return _ContactTile(
-              peer: peer,
-              unreadCount: _unreadCounts[peer['deviceId'] as String? ?? ''] ?? 0,
-            );
-          }),
-        ],
-      ],
-    );
+    final children = <Widget>[
+      // Search bar
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: TextField(
+          controller: _searchController,
+          onChanged: (v) => setState(() => _searchQuery = v),
+          style: const TextStyle(color: MeshAppTheme.textWhite),
+          decoration: InputDecoration(
+            hintText: 'Search contacts...',
+            hintStyle: TextStyle(color: MeshAppTheme.textDim),
+            prefixIcon: Icon(Icons.search_rounded, color: MeshAppTheme.textDim),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear_rounded, color: MeshAppTheme.textDim),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: MeshAppTheme.bgCard,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: MeshAppTheme.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: MeshAppTheme.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        ),
+      ),
+      Expanded(
+        child: ListView(
+          children: [
+            // Groups section
+            if (hasGroups) ...[
+              _SectionHeader(title: 'Groups', count: groups.length),
+              ...groups.map((g) => _GroupTile(
+                group: g,
+                unreadCount: _unreadCounts[g['groupId'] as String? ?? ''] ?? 0,
+                onTap: () {
+                  final meshGroup = MeshGroup.fromMap(g);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GroupChatView(group: meshGroup),
+                    ),
+                  );
+                },
+              )),
+            ],
+            // Contacts section
+            if (hasPeers) ...[
+              _SectionHeader(title: 'Contacts', count: filteredPeers.length),
+              ...List.generate(filteredPeers.length, (i) {
+                final peer = filteredPeers[i];
+                return _ContactTile(
+                  peer: peer,
+                  unreadCount: _unreadCounts[peer['deviceId'] as String? ?? ''] ?? 0,
+                );
+              }),
+            ],
+          ],
+        ),
+      ),
+    ];
+    
+    return Column(children: children);
   }
 }
 

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/mesh_service.dart';
 import '../models/message_model.dart';
 import '../theme/app_theme.dart';
+import '../widgets/voice_message_player.dart';
 
 /// Chat screen — no gradient.
 class ChatView extends ConsumerStatefulWidget {
@@ -27,6 +28,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<Map<String, dynamic>>? _sub;
+  bool _isRecording = false;
 
   @override
   void initState() {
@@ -50,6 +52,39 @@ class _ChatViewState extends ConsumerState<ChatView> {
             ));
           });
           _scrollToBottom();
+        }
+      } else if (evt == 'voiceMessageReceived') {
+        final from = event['fromDeviceId'] as String? ?? '';
+        if (from == widget.peerId) {
+          final ts = event['timestamp'] as int?;
+          final durationMs = event['durationMs'] as int? ?? 0;
+          setState(() {
+            _messages.add(ChatMessage(
+              messageId: event['messageId'] as String? ??
+                  'voice:${DateTime.now().millisecondsSinceEpoch}',
+              type: MessageType.voice,
+              fromMe: false,
+              fromDeviceId: from,
+              localPath: event['filePath'] as String?,
+              audioDuration: Duration(milliseconds: durationMs),
+              timestamp: ts != null ? DateTime.fromMillisecondsSinceEpoch(ts) : DateTime.now(),
+            ));
+          });
+          _scrollToBottom();
+        }
+      } else if (evt == 'voicePlayback') {
+        final messageId = event['messageId'] as String? ?? '';
+        final idx = _messages.indexWhere((m) => m.messageId == messageId);
+        if (idx != -1) {
+          final positionMs = event['positionMs'] as int? ?? 0;
+          final isPlaying = event['isPlaying'] as bool? ?? false;
+          final finished = event['finished'] as bool? ?? false;
+          setState(() {
+            _messages[idx] = _messages[idx].copyWith(
+              isPlaying: isPlaying && !finished,
+              playbackPosition: finished ? 0.0 : positionMs / 1000.0,
+            );
+          });
         }
       } else if (evt == 'deliveryStatus' || evt == 'outboxStatus') {
         final messageId = event['messageId'] as String? ?? '';
@@ -157,6 +192,56 @@ class _ChatViewState extends ConsumerState<ChatView> {
     });
   }
 
+  /// Hold-to-record: mic bosilganda yozishni boshlaydi.
+  Future<void> _startVoiceRecording() async {
+    final service = ref.read(meshServiceProvider);
+    await service.startRecording();
+    if (mounted) setState(() => _isRecording = true);
+  }
+
+  /// Release: yozishni to'xtatadi va yuboradi.
+  Future<void> _stopVoiceRecording({bool cancel = false}) async {
+    if (!_isRecording) return;
+    setState(() => _isRecording = false);
+    final service = ref.read(meshServiceProvider);
+    final result = await service.stopRecording();
+    if (cancel) return;
+    final filePath = result['filePath'] as String?;
+    if (filePath == null || filePath.isEmpty) return;
+    final durationMs = result['durationMs'] as int? ?? 0;
+    final messageId =
+        await service.sendVoiceMessage(widget.peerId, filePath, durationMs);
+    if (!mounted) return;
+    setState(() {
+      _messages.add(ChatMessage(
+        messageId: messageId ?? 'voice:${DateTime.now().millisecondsSinceEpoch}',
+        type: MessageType.voice,
+        fromMe: true,
+        localPath: filePath,
+        audioDuration: Duration(milliseconds: durationMs),
+        status: MessageStatus.pending,
+        timestamp: DateTime.now(),
+      ));
+    });
+    _scrollToBottom();
+  }
+
+  /// Playback tezligini 0.5x → 1x → 1.5x → 2x → 0.5x almashtiradi.
+  Future<void> _cycleVoiceSpeed(ChatMessage msg) async {
+    const speeds = [0.5, 1.0, 1.5, 2.0];
+    final idx = _messages.indexWhere((m) => m.messageId == msg.messageId);
+    if (idx == -1) return;
+    final current = _messages[idx].playbackSpeed;
+    final next = speeds[(speeds.indexOf(current) + 1) % speeds.length];
+    await ref
+        .read(meshServiceProvider)
+        .setVoicePlaybackSpeed(msg.messageId, next);
+    if (!mounted) return;
+    setState(() {
+      _messages[idx] = _messages[idx].copyWith(playbackSpeed: next);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -239,11 +324,21 @@ class _ChatViewState extends ConsumerState<ChatView> {
                         onRetry: msg.fromMe && msg.status == MessageStatus.failed
                             ? () => _retry(msg)
                             : null,
+                        onSpeedCycle: msg.isVoiceMessage
+                            ? () => _cycleVoiceSpeed(msg)
+                            : null,
                       );
                     },
                   ),
           ),
-          _ChatInput(controller: _controller, onSend: _send),
+          _ChatInput(
+            controller: _controller,
+            onSend: _send,
+            isRecording: _isRecording,
+            onRecordStart: _startVoiceRecording,
+            onRecordEnd: () => _stopVoiceRecording(),
+            onRecordCancel: () => _stopVoiceRecording(cancel: true),
+          ),
         ],
       ),
     );
@@ -291,10 +386,21 @@ class _EmptyChat extends StatelessWidget {
 }
 
 class _ChatInput extends StatelessWidget {
-  const _ChatInput({required this.controller, required this.onSend});
+  const _ChatInput({
+    required this.controller,
+    required this.onSend,
+    this.isRecording = false,
+    this.onRecordStart,
+    this.onRecordEnd,
+    this.onRecordCancel,
+  });
 
   final TextEditingController controller;
   final VoidCallback onSend;
+  final bool isRecording;
+  final VoidCallback? onRecordStart;
+  final VoidCallback? onRecordEnd;
+  final VoidCallback? onRecordCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -311,20 +417,75 @@ class _ChatInput extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                maxLines: 4,
-                minLines: 1,
-                textCapitalization: TextCapitalization.sentences,
-                style: const TextStyle(color: MeshAppTheme.textWhite, fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  hintStyle: TextStyle(color: MeshAppTheme.textDim),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            // Hold-to-record voice button
+            GestureDetector(
+              onLongPressStart: (_) => onRecordStart?.call(),
+              onLongPressEnd: (_) => onRecordEnd?.call(),
+              onLongPressCancel: onRecordCancel,
+              child: Container(
+                width: 42,
+                height: 42,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: isRecording ? MeshAppTheme.error : MeshAppTheme.bgCard,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: MeshAppTheme.border, width: 1),
                 ),
-                onSubmitted: (_) => onSend(),
+                child: Icon(
+                  isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
+                  color: isRecording ? Colors.white : MeshAppTheme.textGray,
+                  size: 20,
+                ),
               ),
+            ),
+            Expanded(
+              child: isRecording
+                  ? Container(
+                      height: 42,
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: MeshAppTheme.error.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(21),
+                        border: Border.all(
+                          color: MeshAppTheme.error.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.graphic_eq_rounded,
+                            color: MeshAppTheme.error,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Recording... release to send',
+                            style: TextStyle(
+                              color: MeshAppTheme.error.withValues(alpha: 0.9),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : TextField(
+                      controller: controller,
+                      maxLines: 4,
+                      minLines: 1,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: const TextStyle(
+                          color: MeshAppTheme.textWhite, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText: 'Type a message...',
+                        hintStyle: TextStyle(color: MeshAppTheme.textDim),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                      ),
+                      onSubmitted: (_) => onSend(),
+                    ),
             ),
             const SizedBox(width: 8),
             GestureDetector(
@@ -350,10 +511,12 @@ class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
     required this.message,
     this.onRetry,
+    this.onSpeedCycle,
   });
 
   final ChatMessage message;
   final VoidCallback? onRetry;
+  final VoidCallback? onSpeedCycle;
 
   String _formatTime(DateTime dt) {
     final h = dt.hour.toString().padLeft(2, '0');
@@ -364,6 +527,27 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final me = message.fromMe;
+    
+    // Voice messages use the specialized player
+    if (message.isVoiceMessage) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          mainAxisAlignment: me ? MainAxisAlignment.end : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (!me) const SizedBox(width: 4),
+            VoiceMessagePlayer(
+              message: message,
+              onPlayPause: () {},
+              onSpeedChange: onSpeedCycle,
+            ),
+            if (me) const SizedBox(width: 4),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(

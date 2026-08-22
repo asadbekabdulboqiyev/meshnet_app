@@ -12,6 +12,7 @@ const List<Permission> _meshPermissions = [
   Permission.locationWhenInUse,
   Permission.nearbyWifiDevices,
   Permission.notification,
+  Permission.microphone,
 ];
 
 /// Requests all permissions. Returns the list of denied ones.

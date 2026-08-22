@@ -48,8 +48,6 @@ class _NetworkMapViewState extends ConsumerState<NetworkMapView>
   }
 
   void _updateFromPeers(List<Map<String, dynamic>> peers) {
-    final existingIds = _nodes.map((n) => n.id).toSet();
-
     if (!_nodes.any((n) => n.isSelf)) {
       _nodes.insert(0, GraphNode(
         id: 'self',
@@ -102,7 +100,9 @@ class _NetworkMapViewState extends ConsumerState<NetworkMapView>
         if (node.isSelf) continue;
         if (_edges.any((e) =>
             (e.from == selfNode && e.to == node) ||
-            (e.from == node && e.to == selfNode))) continue;
+            (e.from == node && e.to == selfNode))) {
+          continue;
+        }
         _edges.add(GraphEdge(
           from: selfNode,
           to: node,
@@ -177,7 +177,7 @@ class _NetworkMapViewState extends ConsumerState<NetworkMapView>
           return _buildCanvas();
         },
         loading: () => _buildCanvas(),
-        error: (_, __) => _buildCanvas(),
+        error: (_, _) => _buildCanvas(),
       ),
     );
   }

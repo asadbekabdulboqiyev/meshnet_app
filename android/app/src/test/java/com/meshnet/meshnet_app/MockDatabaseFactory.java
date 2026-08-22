@@ -32,6 +32,7 @@ public class MockDatabaseFactory {
         List<MessageStore.OutboxMessage> outboxMessages = new ArrayList<>();
         Map<String, GroupStore.Group> groups = new HashMap<>();
         Map<String, List<GroupStore.GroupMember>> groupMembers = new HashMap<>();
+        Map<String, MeshDatabase.GroupMessage> groupMessages = new HashMap<>();
         Map<String, RatchetSessionStore.SessionInfo> ratchetSessionInfos = new HashMap<>();
         Map<String, String> identity = new HashMap<>();
 
@@ -148,6 +149,50 @@ public class MockDatabaseFactory {
             if (members == null) return new ArrayList<>();
             return new ArrayList<>(members);
         }).when(db).getGroupMembers(any());
+
+        // =================== Group message ops ===================
+
+        doAnswer(inv -> {
+            MeshDatabase.GroupMessage msg = inv.getArgument(0);
+            groupMessages.putIfAbsent(msg.getMessageId(), msg);
+            return null;
+        }).when(db).insertGroupMessage(any());
+
+        doAnswer(inv -> {
+            String id = inv.getArgument(0);
+            return groupMessages.get(id);
+        }).when(db).getGroupMessageById(any());
+
+        doAnswer(inv -> {
+            String id = inv.getArgument(0);
+            String status = inv.getArgument(1);
+            MeshDatabase.GroupMessage existing = groupMessages.get(id);
+            if (existing != null) {
+                groupMessages.put(id, new MeshDatabase.GroupMessage(
+                        existing.getMessageId(), existing.getGroupId(),
+                        existing.getSenderId(), existing.getSenderName(),
+                        existing.getMessage(), existing.getFromMe(),
+                        existing.getTimestampMs(), status));
+            }
+            return 1;
+        }).when(db).updateGroupMessageStatus(any(), any());
+
+        doAnswer(inv -> {
+            String groupId = inv.getArgument(0);
+            List<MeshDatabase.GroupMessage> result = new ArrayList<>();
+            for (MeshDatabase.GroupMessage m : groupMessages.values()) {
+                if (m.getGroupId().equals(groupId)) result.add(m);
+            }
+            result.sort((a, b) -> Long.compare(b.getTimestampMs(), a.getTimestampMs()));
+            int limit = inv.getArgument(1) == null ? 200 : (int) inv.getArgument(1);
+            return result.size() > limit ? new ArrayList<>(result.subList(0, limit)) : result;
+        }).when(db).getGroupMessages(any(), org.mockito.ArgumentMatchers.anyInt());
+
+        doAnswer(inv -> {
+            String groupId = inv.getArgument(0);
+            groupMessages.values().removeIf(m -> m.getGroupId().equals(groupId));
+            return null;
+        }).when(db).deleteGroupMessages(any());
 
         // =================== Ratchet session ops ===================
 

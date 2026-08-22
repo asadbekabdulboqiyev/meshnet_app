@@ -130,7 +130,10 @@ class CollabService(
     }.sortedBy { (it["title"] as? String) ?: "" }
 
     /**
-     * Local edit: bump revision, broadcast. Returns new rev or -1.
+     * Local edit: bump revision, broadcast FULL state (announce).
+     * Full-state broadcast doubles as creation sync: peers that never saw
+     * this doc learn it on the first edit, and peers that missed earlier
+     * edits converge via LWW. Returns new rev or -1.
      */
     fun editDocLocal(docId: String, newText: String): Int {
         val doc = docs[docId] ?: return -1
@@ -138,9 +141,15 @@ class CollabService(
         val applied = doc.editLocal(nextRev, selfDeviceId, newText, System.currentTimeMillis())
         if (applied < 0) return -1
         persistDoc(doc)
-        routing.sendDocEdit("${doc.docId}|$nextRev|${doc.updatedAtMs}|${DocState.b64(newText)}")
+        routing.sendDocAnnounce(encodeDocAnnounce(doc))
         notifyListeners { it.onDocChanged(docId, nextRev, newText, selfDeviceId) }
         return nextRev
+    }
+
+    /** Broadcast an existing doc's full state (e.g. right after creation). */
+    fun announceDoc(docId: String): Boolean {
+        val doc = docs[docId] ?: return false
+        return routing.sendDocAnnounce(encodeDocAnnounce(doc))
     }
 
     // ---------------- Polls ----------------
@@ -227,11 +236,43 @@ class CollabService(
         val rev = revStr.toIntOrNull() ?: return
         val ts = tsStr.toLongOrNull() ?: return
         val text = DocState.unb64(bodyB64) ?: return
-        val doc = docs[docId]
-        if (doc != null && doc.applyEdit(rev, frame.senderId, text, ts)) {
+        // Auto-create when unknown so first edits are not dropped.
+        val doc = docs[docId] ?: ensureDoc(docId, docId) ?: return
+        if (doc.applyEdit(rev, frame.senderId, text, ts)) {
             persistDoc(doc)
             notifyListeners { it.onDocChanged(docId, doc.rev, doc.text, frame.senderId) }
         }
+    }
+
+    /** Full-state doc sync: upsert with LWW (higher rev, tie -> newer ts). */
+    override fun onDocAnnounce(frame: MeshFrame) {
+        if (frame.senderId == selfDeviceId) return
+        val parts = String(frame.payload, Charsets.UTF_8).split("|", limit = 5)
+        if (parts.size != 5) return
+        val docId = parts[0]
+        if (!DocState.isValidDocId(docId)) return
+        val rev = parts[1].toIntOrNull() ?: return
+        val updatedAtMs = parts[2].toLongOrNull() ?: return
+        val title = DocState.unb64(parts[3]) ?: return
+        val text = DocState.unb64(parts[4]) ?: return
+
+        val existing = docs[docId]
+        if (existing != null) {
+            // LWW: accept only strictly newer knowledge.
+            val incomingNewer =
+                rev > existing.rev ||
+                    (rev == existing.rev && updatedAtMs > existing.updatedAtMs)
+            if (!incomingNewer) return
+            existing.applyEdit(rev, frame.senderId, text, updatedAtMs)
+            if (title.isNotBlank()) existing.title = title
+        } else {
+            val doc = DocState(docId, title.ifBlank { docId })
+            doc.applyEdit(rev, frame.senderId, text, updatedAtMs)
+            docs[docId] = doc
+        }
+        persistDoc(docs[docId]!!)
+        Log.d(TAG, "doc announced/updated: $docId rev=$rev from ${frame.senderId}")
+        notifyListeners { it.onDocChanged(docId, docs[docId]!!.rev, docs[docId]!!.text, frame.senderId) }
     }
 
     override fun onPollCreate(frame: MeshFrame) {
@@ -264,6 +305,11 @@ class CollabService(
     internal fun encodePoll(p: PollManager.Poll): String =
         "${p.pollId}|${p.createdAtMs}|${DocState.b64(p.question)}" +
             p.options.joinToString("") { "|${DocState.b64(it)}" }
+
+    /** Full doc state wire format: docId|rev|updatedAtMs|titleB64|textB64 */
+    internal fun encodeDocAnnounce(doc: DocState): String =
+        "${doc.docId}|${doc.rev}|${doc.updatedAtMs}|" +
+            DocState.b64(doc.title) + "|" + DocState.b64(doc.text)
 
     private fun parsePollPayload(payload: String, creatorId: String): PollManager.Poll? {
         val parts = payload.split("|")

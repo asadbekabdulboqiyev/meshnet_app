@@ -54,15 +54,15 @@ Flutter UI  <-->  MeshService (MethodChannel)  <-->  MeshEngine  <-->  RoutingEn
 | Crypto | ChaCha20-Poly1305, X25519 ECDH, HKDF, Double Ratchet |
 | Transport | BLE GATT (server/client) + Wi-Fi Direct P2P sockets |
 | Storage | SharedPreferences (peer state, messages, outbox) |
-| Message types | 30 types: text, file, voice, group, pairing, routing, heartbeats, delivery, read receipts, key management, DNS, collab, gateway, emergency, search |
+| Message types | 33 types: text, file, voice, group, pairing, routing, heartbeats, delivery, read receipts, key management, DNS, collab, gateway, emergency, search, ROLE_GRANT (0x77), SIGN_KEY (0x78), DOC_OPS (0x79) |
 
 ## Testing
 
-**1220 total unit tests** -- all passing.
+**1236 total unit tests** -- all passing.
 
 | Suite | Count | Coverage |
 |-------|-------|----------|
-| Kotlin | 928 | Crypto, protocol, storage, routing, VPN proxy, RBAC, emergency, search, edge cases, stress tests |
+| Kotlin | 944 | Crypto, protocol, storage, routing, VPN proxy, RBAC with crypto signing, emergency, search, edge cases, stress tests |
 | Flutter | 292 | Models, services, widgets, gateway UI, emergency, search, admin |
 
 ```bash
@@ -108,7 +108,7 @@ Shipped on top of the mesh engine:
 - **LocalNetService** -- orchestrates announce (every ~30s), multi-hop resolution via query flooding, name-conflict fallback (`name-xxxx.mesh`).
 - **Flutter "LocalNet" tab** -- live view of your hostname, HTTP status, and discovered mesh hosts.
 
-> **Honest limitations:** HTTP is served over direct TCP only -- fast inside a Wi-Fi Direct group, not available over BLE-only links (~50-100 kbps). DNS announcements are not cryptographically signed yet (ownership proof planned for Phase 2).
+> **Honest limitations:** HTTP is served over direct TCP only -- fast inside a Wi-Fi Direct group, not available over BLE-only links (~50-100 kbps). DNS announcements are not cryptographically signed yet (ownership proof planned for Phase 2). RBAC is trust-based without cryptographic enforcement at the mesh layer (signing keys available for higher-assurance deployments).
 
 ### Phase 2: File Sharing -- DONE
 
@@ -128,7 +128,7 @@ A distributed file system on top of LocalNet:
 Real-time shared spaces flooded over the mesh (works multi-hop, BLE or Wi-Fi Direct):
 
 - **Whiteboard (`localnet/collab/WhiteboardState.kt`)** -- stroke-based shared canvas. Strokes are deduped by id (flooding duplicates are free), capped at 2000 per board (oldest dropped). `BOARD_STROKE` / `BOARD_CLEAR` frames (`0x63`/`0x67`) broadcast every pen move; full snapshots served at `/collab/board/<room>` for late joiners.
-- **Shared notes (`DocState.kt`)** -- collaborative text with LAST-WRITER-WINS merging: edits carry a revision; ties break by senderId so every device converges to the same text without a server. `DOC_EDIT` frames (`0x64`), snapshots at `/collab/doc/<id>`.
+- **Shared notes (`DocState.kt`)** -- collaborative text with LAST-WRITER-WINS merging: edits carry a revision; ties break by senderId so every device converges to the same text without a server. `DOC_EDIT` frames (`0x64`), snapshots at `/collab/doc/<id>`. **New: DOC_OPS frame (0x79)** enables insert/delete operations for richer rich-text editing workflows.
 - **Polls (`PollManager.kt`)** -- create + vote, one ballot per device (re-voting replaces), tallied locally everywhere from received votes. `POLL_CREATE` / `POLL_VOTE` frames (`0x65`/`0x66`), snapshot at `/collab/polls`.
 - **CollabService** -- orchestrates rooms/docs/polls, persists everything to disk (survives restart), emits live events to Flutter (`collabStroke`, `docUpdated`, `pollUpdated`).
 - **Flutter UI** -- "Collaboration" entry in LocalNet tab opens three tabs: draw on the Board (live strokes from peers), edit Team Notes (debounced auto-save + remote-update banner), create/vote Polls with live result bars.
@@ -151,10 +151,10 @@ An offline app store on top of the Phase 2 file transport:
 
 A complete community management layer on top of the mesh:
 
-- **RBAC Access Control (`localnet/rbac/`)** -- Role-based permissions with 7 roles (`OWNER`, `ADMIN`, `MODERATOR`, `MEMBER`, `GUEST`, `BANNED`) and 35 granular permissions covering mesh admin, DNS, HTTP, files, collaboration (boards/docs/polls), apps, gateway, emergency, search. Per-resource role assignments with inheritance from mesh-wide default role. First creator becomes `OWNER` automatically. Ban/unban with instant effect. Persistent snapshot/restore.
+- **RBAC Access Control (`localnet/rbac/`)** -- Role-based permissions with 7 roles (`OWNER`, `ADMIN`, `MODERATOR`, `MEMBER`, `GUEST`, `BANNED`) and 35 granular permissions covering mesh admin, DNS, HTTP, files, collaboration (boards/docs/polls), apps, gateway, emergency, search. Per-resource role assignments with inheritance from mesh-wide default role. First creator becomes `OWNER` automatically. Ban/unban with instant effect. Persistent snapshot/restore. **Cryptographic signing via ECDSA P-256** — role grants are signed with separate signing keys (not the X25519 mesh identity key), providing cryptographically proven RBAC. Wire protocol codes: `ROLE_GRANT` (0x77), `SIGN_KEY` (0x78). RBAC API via MethodChannel: `setDeviceRole`, `getDeviceRole`, `setResourceRole`, `checkPermission`, `banDevice`, `unbanDevice`.
 - **Emergency Broadcast (`localnet/emergency/EmergencyManager.kt`)** -- Priority alerts flooded instantly with max TTL (4 levels: INFO/WARNING/CRITICAL/EMERGENCY). Payload: `"alertId|senderId|senderName|level|title|message|location|coordinates|expiresAtMs|createdAtMs|requiresAck|metadata"`. Auto-acknowledgment tracking with `EMERGENCY_ACK` frames. Sender can cancel with `EMERGENCY_CANCEL`. Deduplication via seen-cache (24h TTL). Flutter "Emergency Broadcast" screen with send/ack/cancel, live alert cards with countdown timers.
 - **Mesh-wide Search (`localnet/search/SearchIndex.kt`)** -- Distributed inverted index with tokenization (2-50 char terms). Local search with TF scoring + snippet generation. Distributed query flooding (`SEARCH_QUERY` 0x73, TTL=4) with unicast results (`SEARCH_RESULT` 0x74). Results merged across responders, filtered by RBAC `search.query` permission. Periodic cleanup of pending queries (10s timeout) and seen-queries. Flutter "Mesh Search" tab with local/mesh tabs, resource type filters, result cards with type icons and scores.
 - **Integration** -- `LocalNetService` wires all three: `accessControl`, `emergency`, `search` initialized in constructor. `periodicWork()` calls `emergency.periodicCleanup()` + `search.periodicCleanup()`. New `Listener` callbacks: `onRoleChanged`, `onEmergencyAlert`, `onEmergencyAck`, `onEmergencyCancelled`, `onSearchResult`. MeshEngine adds 14 new MethodChannel methods (`sendEmergencyAlert`, `acknowledgeEmergency`, `cancelEmergency`, `getEmergencies`, `setDeviceRole`, `getDeviceRole`, `setResourceRole`, `checkPermission`, `banDevice`, `unbanDevice`, `searchLocal`, `searchDistributed`, `indexContent`, `removeFromIndex`, `getSearchStats`) + EventChannel events.
-- **Tests** -- Kotlin: `RoleTest`, `PermissionTest`, `AccessControlTest`, `EmergencyManagerTest`, `SearchIndexTest` (all passing). Flutter: mesh_service 14 new methods + 14 tests. All 292 Flutter + 928 Kotlin = 1220 total tests green.
+- **Tests** -- Kotlin: `RoleTest`, `PermissionTest`, `AccessControlTest`, `EmergencyManagerTest`, `SearchIndexTest` (all passing). Flutter: mesh_service 14 new methods + 14 tests. All 292 Flutter + 944 Kotlin = 1236 total tests green.
 
 > **Honest limitations:** RBAC is trust-based (no cryptographic proof of role assignment -- peers must trust the role-setter). Emergency alerts are unencrypted and unauthenticated (same as DNS/collab). Search index sync is pull-only (no periodic push); bootstrapping a new node requires querying peers. No full-text search engine (simple tokenization + TF scoring only). Ban is mesh-wide but not cryptographically enforced.

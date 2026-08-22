@@ -5,11 +5,12 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.meshnet.meshnet_app.localnet.rbac.Role
 
 /**
  * MeshDatabase — single SQLite database replacing all SharedPreferences stores.
  * Tables: peers, incoming_messages, outbox_messages, groups, group_members,
- *         ratchet_sessions, identity.
+ *         group_messages, ratchet_sessions, identity.
  */
 open class MeshDatabase(context: Context) : SQLiteOpenHelper(
     context, DB_NAME, null, DB_VERSION
@@ -17,7 +18,7 @@ open class MeshDatabase(context: Context) : SQLiteOpenHelper(
 
     companion object {
         const val DB_NAME = "meshnet.db"
-        const val DB_VERSION = 1
+        const val DB_VERSION = 3
 
         @Volatile
         private var instance: MeshDatabase? = null
@@ -51,17 +52,30 @@ open class MeshDatabase(context: Context) : SQLiteOpenHelper(
         db.execSQL(CREATE_OUTBOX_MESSAGES)
         db.execSQL(CREATE_GROUPS)
         db.execSQL(CREATE_GROUP_MEMBERS)
+        db.execSQL(CREATE_GROUP_MESSAGES)
         db.execSQL(CREATE_RATCHET_SESSIONS)
         db.execSQL(CREATE_IDENTITY)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // MVP: drop and recreate
+        if (oldVersion < 2) {
+            // v1 -> v2: add group_messages table, preserve existing data.
+            db.execSQL(CREATE_GROUP_MESSAGES)
+            return
+        }
+        if (oldVersion < 3) {
+            // v2 -> v3: add role_grants and signing_keys tables
+            db.execSQL(CREATE_ROLE_GRANTS)
+            db.execSQL(CREATE_SIGNING_KEYS)
+            return
+        }
+        // Fallback: drop and recreate (should not happen with additive migrations)
         db.execSQL("DROP TABLE IF EXISTS peers")
         db.execSQL("DROP TABLE IF EXISTS incoming_messages")
         db.execSQL("DROP TABLE IF EXISTS outbox_messages")
         db.execSQL("DROP TABLE IF EXISTS groups")
         db.execSQL("DROP TABLE IF EXISTS group_members")
+        db.execSQL("DROP TABLE IF EXISTS group_messages")
         db.execSQL("DROP TABLE IF EXISTS ratchet_sessions")
         db.execSQL("DROP TABLE IF EXISTS identity")
         onCreate(db)
@@ -124,6 +138,19 @@ open class MeshDatabase(context: Context) : SQLiteOpenHelper(
         )
     """.trimIndent()
 
+    private val CREATE_GROUP_MESSAGES = """
+        CREATE TABLE group_messages (
+            messageId TEXT PRIMARY KEY,
+            groupId TEXT NOT NULL,
+            senderId TEXT NOT NULL,
+            senderName TEXT NOT NULL DEFAULT '',
+            message TEXT NOT NULL DEFAULT '',
+            fromMe INTEGER NOT NULL DEFAULT 0,
+            timestampMs INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'delivered'
+        )
+    """.trimIndent()
+
     private val CREATE_RATCHET_SESSIONS = """
         CREATE TABLE ratchet_sessions (
             peerId TEXT PRIMARY KEY,
@@ -139,6 +166,32 @@ open class MeshDatabase(context: Context) : SQLiteOpenHelper(
         CREATE TABLE identity (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL DEFAULT ''
+        )
+    """.trimIndent()
+
+    private val CREATE_ROLE_GRANTS = """
+        CREATE TABLE role_grants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            grantId TEXT UNIQUE NOT NULL,
+            targetDeviceId TEXT NOT NULL,
+            role INTEGER NOT NULL,
+            grantedByDeviceId TEXT,
+            grantedAtMs INTEGER NOT NULL DEFAULT (cast(strftime('%s', 'now') as integer) * 1000),
+            expiresAtMs INTEGER,
+            grantedAtMs INTEGER NOT NULL DEFAULT (cast(strftime('%s', 'now') as integer) * 1000),
+            PRIMARY KEY (grantId, targetDeviceId)
+        )
+    """.trimIndent()
+
+    private val CREATE_SIGNING_KEYS = """
+        CREATE TABLE signing_keys (
+            keyId TEXT PRIMARY KEY,
+            deviceId TEXT NOT NULL,
+            publicKeyB64 TEXT NOT NULL,
+            privateKeyB64 TEXT,
+            createdAtMs INTEGER NOT NULL DEFAULT (cast(strftime('%s', 'now') as integer) * 1000),
+            updatedAtMs INTEGER NOT NULL DEFAULT (cast(strftime('%s', 'now') as integer) * 1000),
+            isActive INTEGER NOT NULL DEFAULT 1
         )
     """.trimIndent()
 
@@ -318,6 +371,8 @@ open class MeshDatabase(context: Context) : SQLiteOpenHelper(
             put("createdBy", group.createdBy)
         }
         writableDatabase.insertWithOnConflict("groups", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+        // Full membership replace: drop stale members that are no longer in the list.
+        writableDatabase.delete("group_members", "groupId = ?", arrayOf(group.groupId))
         for (member in group.members) {
             val mCv = ContentValues().apply {
                 put("groupId", group.groupId)
@@ -351,6 +406,7 @@ open class MeshDatabase(context: Context) : SQLiteOpenHelper(
     open fun deleteGroup(groupId: String) {
         writableDatabase.delete("groups", "groupId = ?", arrayOf(groupId))
         writableDatabase.delete("group_members", "groupId = ?", arrayOf(groupId))
+        writableDatabase.delete("group_messages", "groupId = ?", arrayOf(groupId))
     }
 
     open fun getGroupMembers(groupId: String): List<com.meshnet.meshnet_app.protocol.GroupStore.GroupMember> {
@@ -382,6 +438,78 @@ open class MeshDatabase(context: Context) : SQLiteOpenHelper(
             createdBy = c.getString(c.getColumnIndexOrThrow("createdBy")),
         )
     }
+
+    // =================== Group message operations ===================
+
+    data class GroupMessage(
+        val messageId: String,
+        val groupId: String,
+        val senderId: String,
+        val senderName: String,
+        val message: String,
+        val fromMe: Boolean,
+        val timestampMs: Long,
+        val status: String,
+    )
+
+    open fun insertGroupMessage(msg: GroupMessage) {
+        val cv = ContentValues().apply {
+            put("messageId", msg.messageId)
+            put("groupId", msg.groupId)
+            put("senderId", msg.senderId)
+            put("senderName", msg.senderName)
+            put("message", msg.message)
+            put("fromMe", if (msg.fromMe) 1 else 0)
+            put("timestampMs", msg.timestampMs)
+            put("status", msg.status)
+        }
+        writableDatabase.insertWithOnConflict(
+            "group_messages", null, cv, SQLiteDatabase.CONFLICT_IGNORE
+        )
+    }
+
+    open fun updateGroupMessageStatus(messageId: String, status: String) {
+        val cv = ContentValues().apply { put("status", status) }
+        writableDatabase.update("group_messages", cv, "messageId = ?", arrayOf(messageId))
+    }
+
+    open fun getGroupMessageById(messageId: String): GroupMessage? {
+        val cursor = readableDatabase.query(
+            "group_messages", null, "messageId = ?", arrayOf(messageId),
+            null, null, null
+        )
+        return cursor.use {
+            if (it.moveToFirst()) cursorToGroupMessage(it) else null
+        }
+    }
+
+    open fun getGroupMessages(groupId: String, limit: Int = 200): List<GroupMessage> {
+        val cursor = readableDatabase.query(
+            "group_messages", null, "groupId = ?", arrayOf(groupId),
+            null, null, "timestampMs DESC", limit.toString()
+        )
+        return cursor.use {
+            val list = mutableListOf<GroupMessage>()
+            while (it.moveToNext()) list.add(cursorToGroupMessage(it))
+            list
+        }
+    }
+
+    open fun deleteGroupMessages(groupId: String) {
+        writableDatabase.delete("group_messages", "groupId = ?", arrayOf(groupId))
+    }
+
+    private fun cursorToGroupMessage(c: Cursor): GroupMessage =
+        GroupMessage(
+            messageId = c.getString(c.getColumnIndexOrThrow("messageId")),
+            groupId = c.getString(c.getColumnIndexOrThrow("groupId")),
+            senderId = c.getString(c.getColumnIndexOrThrow("senderId")),
+            senderName = c.getString(c.getColumnIndexOrThrow("senderName")),
+            message = c.getString(c.getColumnIndexOrThrow("message")),
+            fromMe = c.getInt(c.getColumnIndexOrThrow("fromMe")) == 1,
+            timestampMs = c.getLong(c.getColumnIndexOrThrow("timestampMs")),
+            status = c.getString(c.getColumnIndexOrThrow("status")),
+        )
 
     // =================== Ratchet session operations ===================
 
@@ -457,5 +585,101 @@ open class MeshDatabase(context: Context) : SQLiteOpenHelper(
             "SELECT 1 FROM identity WHERE key = ? LIMIT 1", arrayOf(key)
         )
         return cursor.use { it.moveToFirst() }
+    }
+
+    // =================== Role grants operations ===================
+
+    open fun grantRole(grantId: String, targetDeviceId: String, role: Role, grantedByDeviceId: String? = null) {
+        val cv = ContentValues().apply {
+            put("grantId", grantId)
+            put("targetDeviceId", targetDeviceId)
+            put("role", role.level)
+        }
+        cv.put("grantedByDeviceId", grantedByDeviceId ?: "")
+        cv.put("grantedAtMs", System.currentTimeMillis())
+        writableDatabase.insertWithOnConflict("role_grants", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    open fun getRoleGrants(targetDeviceId: String): List<Map<String, Any>> {
+        val cursor = readableDatabase.query(
+            "role_grants", null, "targetDeviceId = ?", arrayOf(targetDeviceId),
+            null, null, "grantedAtMs DESC"
+        )
+        return cursor.use {
+            val list = mutableListOf<Map<String, Any>>()
+            while (it.moveToNext()) {
+                list.add(mapOf(
+                    "grantId" to it.getString(it.getColumnIndexOrThrow("grantId")),
+                    "role" to Role.values()[it.getInt(it.getColumnIndexOrThrow("role"))],
+                    "grantedByDeviceId" to it.getString(it.getColumnIndexOrThrow("grantedByDeviceId")),
+                    "grantedAtMs" to it.getLong(it.getColumnIndexOrThrow("grantedAtMs")),
+                    "expiresAtMs" to it.getLong(it.getColumnIndexOrThrow("expiresAtMs"))
+                ))
+            }
+            list
+        }
+    }
+
+    open fun revokeRole(grantId: String) {
+        writableDatabase.delete("role_grants", "grantId = ?", arrayOf(grantId))
+    }
+
+    // =================== Signing keys operations ===================
+
+    open fun setSigningKey(deviceId: String, publicKeyB64: String, privateKeyB64: String?, keyId: String? = null) {
+        val id = keyId ?: "${deviceId}_${System.currentTimeMillis()}"
+        val cv = ContentValues().apply {
+            put("keyId", id)
+            put("deviceId", deviceId)
+            put("publicKeyB64", publicKeyB64)
+            put("privateKeyB64", privateKeyB64 ?: "")
+            put("createdAtMs", System.currentTimeMillis())
+            put("updatedAtMs", System.currentTimeMillis())
+            put("isActive", 1)
+        }
+        writableDatabase.insertWithOnConflict("signing_keys", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    open fun getSigningKey(keyId: String): Map<String, Any?>? {
+        val cursor = readableDatabase.query(
+            "signing_keys", null, "keyId = ?", arrayOf(keyId),
+            null, null, null
+        )
+        return cursor.use {
+            if (it.moveToFirst()) mapOf(
+                "keyId" to it.getString(it.getColumnIndexOrThrow("keyId")),
+                "deviceId" to it.getString(it.getColumnIndexOrThrow("deviceId")),
+                "publicKeyB64" to it.getString(it.getColumnIndexOrThrow("publicKeyB64")),
+                "privateKeyB64" to it.getString(it.getColumnIndexOrThrow("privateKeyB64")),
+                "createdAtMs" to it.getLong(it.getColumnIndexOrThrow("createdAtMs")),
+                "updatedAtMs" to it.getLong(it.getColumnIndexOrThrow("updatedAtMs")),
+                "isActive" to it.getInt(it.getColumnIndexOrThrow("isActive"))
+            ) else null
+        }
+    }
+
+    open fun listSigningKeys(deviceId: String): List<Map<String, Any>> {
+        val cursor = readableDatabase.query(
+            "signing_keys", null, "deviceId = ?", arrayOf(deviceId),
+            null, null, "createdAtMs DESC"
+        )
+        return cursor.use {
+            val list = mutableListOf<Map<String, Any>>()
+            while (it.moveToNext()) {
+                list.add(mapOf(
+                    "keyId" to it.getString(it.getColumnIndexOrThrow("keyId")),
+                    "deviceId" to it.getString(it.getColumnIndexOrThrow("deviceId")),
+                    "publicKeyB64" to it.getString(it.getColumnIndexOrThrow("publicKeyB64")),
+                    "createdAtMs" to it.getLong(it.getColumnIndexOrThrow("createdAtMs")),
+                    "isActive" to it.getInt(it.getColumnIndexOrThrow("isActive"))
+                ))
+            }
+            list
+        }
+    }
+
+    open fun deactivateSigningKey(keyId: String) {
+        val cv = ContentValues().apply { put("isActive", 0) }
+        writableDatabase.update("signing_keys", cv, "keyId = ?", arrayOf(keyId))
     }
 }

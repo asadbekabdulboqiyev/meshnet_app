@@ -37,6 +37,10 @@ class RoutingEngine(
         // Route table: routes are automatically learned and expire
         const val ROUTE_TTL_MS = 90_000L
         const val MAX_ROUTE_TABLE = 200
+        // Voice payload header: [durationMs 4B BE][codec 1B]
+        const val VOICE_HEADER_SIZE = 5
+        const val CODEC_OPUS: Byte = 'O'.code.toByte()
+        const val CODEC_AAC: Byte = 'A'.code.toByte()
     }
 
     interface MessageListener {
@@ -52,7 +56,8 @@ class RoutingEngine(
         fun onFileTransferProgress(transferId: String, bytesTransferred: Long, totalBytes: Long) {}
         fun onFileTransferComplete(transferId: String, filePath: String, fileName: String, senderId: String) {}
         fun onGroupMessageReceived(groupId: String, senderId: String, message: String, senderName: String, messageId: String) {}
-        fun onVoiceMessageReceived(senderId: String, audioData: ByteArray, messageId: String) {}
+        fun onGroupReceived(groupId: String, name: String, memberCount: Int) {}
+        fun onVoiceMessageReceived(senderId: String, audioData: ByteArray, messageId: String, durationMs: Int, codec: String) {}
         fun onReadReceived(fromDeviceId: String, messageIds: List<String>) {}
         fun onLocalEvent(event: Map<String, Any?>) {}
     }
@@ -80,6 +85,7 @@ class RoutingEngine(
         fun onBoardStroke(frame: MeshFrame) {}
         fun onBoardClear(frame: MeshFrame) {}
         fun onDocEdit(frame: MeshFrame) {}
+        fun onDocAnnounce(frame: MeshFrame) {}
         fun onPollCreate(frame: MeshFrame) {}
         fun onPollVote(frame: MeshFrame) {}
     }
@@ -109,6 +115,38 @@ class RoutingEngine(
 
     @Volatile
     var emergencyHandler: EmergencyHandler? = null
+
+    /**
+     * LocalNet (Phase 6): RBAC frames are handled outside RoutingEngine by
+     * AccessControl via LocalNetService. Optional hook keeps the routing core
+     * decoupled from LocalNet.
+     */
+    interface RbacHandler {
+        fun onRoleGrant(frame: MeshFrame)
+    }
+
+    @Volatile
+    var rbacHandler: RbacHandler? = null
+
+    /**
+     * LocalNet (Phase 6): signing key request/response frames.
+     */
+    interface CryptoHandler {
+        fun onSignKey(frame: MeshFrame)
+    }
+
+    @Volatile
+    var cryptoHandler: CryptoHandler? = null
+
+    /**
+     * LocalNet (Phase 6): DOC_OPS collaboration frames.
+     */
+    interface DocOpsHandler {
+        fun onDocOps(frame: MeshFrame)
+    }
+
+    @Volatile
+    var docOpsHandler: DocOpsHandler? = null
 
     /**
      * LocalNet (Phase 6): search frames are handled
@@ -303,6 +341,13 @@ class RoutingEngine(
     }
 
     private fun routeFrame(frame: MeshFrame) {
+        // Multi-hop broadcast: re-flood so devices beyond direct neighbors
+        // receive collab/DNS/emergency/search/poll frames too. Safe from
+        // storms: the seen-cache above drops repeats of the same (sender:seq),
+        // so each device forwards any given broadcast exactly once.
+        if (frame.targetId == MeshFrame.BROADCAST && frame.type != MessageType.PEER_PING) {
+            relayBroadcast(frame)
+        }
         when (frame.type) {
             MessageType.TEXT -> handleText(frame)
             MessageType.FILE_START -> handleFileStart(frame)
@@ -326,6 +371,7 @@ class RoutingEngine(
             MessageType.BOARD_STROKE -> collabHandler?.onBoardStroke(frame)
             MessageType.BOARD_CLEAR -> collabHandler?.onBoardClear(frame)
             MessageType.DOC_EDIT -> collabHandler?.onDocEdit(frame)
+            MessageType.DOC_ANNOUNCE -> collabHandler?.onDocAnnounce(frame)
             MessageType.POLL_CREATE -> collabHandler?.onPollCreate(frame)
             MessageType.POLL_VOTE -> collabHandler?.onPollVote(frame)
             MessageType.VPN_GW_ANNOUNCE -> gatewayHandler?.onGatewayAnnounce(frame)
@@ -334,7 +380,10 @@ class RoutingEngine(
             MessageType.SEARCH_QUERY, MessageType.SEARCH_RESULT, MessageType.SEARCH_INDEX_SYNC ->
                 searchHandler?.onSearchFrame(frame)
             MessageType.PEER_PING -> { /* javob kerak emas - borlik */ }
-            MessageType.GROUP_CREATE -> { /* group yaratish qabul qilindi */ }
+            MessageType.ROLE_GRANT -> rbacHandler?.onRoleGrant(frame)
+            MessageType.SIGN_KEY -> cryptoHandler?.onSignKey(frame)
+            MessageType.DOC_OPS -> docOpsHandler?.onDocOps(frame)
+            MessageType.GROUP_CREATE -> handleGroupCreate(frame)
             MessageType.GROUP_ADD_MEMBER -> { /* a'zo qo'shildi */ }
             MessageType.GROUP_REMOVE_MEMBER -> { /* a'zo o'chirildi */ }
             MessageType.GROUP_LEAVE -> { /* a'zo chiqdi */ }
@@ -444,6 +493,15 @@ class RoutingEngine(
             Log.d(TAG, "Relay flood: ${frame.senderId} -> ${frame.targetId} (hop=$nextHop ttl=$nextTtl)")
             listenerList.forEach { it.onFrameToSend(relayFrame, null) }
         }
+    }
+
+    /** Re-broadcast a broadcast frame with decremented hop/ttl (multi-hop). */
+    private fun relayBroadcast(frame: MeshFrame) {
+        val nextHop = frame.hopLimit - 1
+        val nextTtl = frame.ttl - 1
+        if (nextHop <= 0 || nextTtl <= 0) return
+        framesRelayed++
+        emitForSend(frame.copy(hopLimit = nextHop, ttl = nextTtl), null)
     }
 
     private fun handleDeliveryReport(frame: MeshFrame) {
@@ -654,6 +712,10 @@ class RoutingEngine(
     /** Broadcast a doc edit (LWW merge on every receiver). */
     fun sendDocEdit(payload: String): Boolean =
         sendCollabBroadcast(MessageType.DOC_EDIT, payload)
+
+    /** Broadcast full doc state (creation sync + missed-edit gap fill). */
+    fun sendDocAnnounce(payload: String): Boolean =
+        sendCollabBroadcast(MessageType.DOC_ANNOUNCE, payload)
 
     /** Broadcast a new poll. */
     fun sendPollCreate(payload: String): Boolean =
@@ -1027,6 +1089,167 @@ class RoutingEngine(
         }
     }
 
+    // === GROUP DEFINITION SYNC (create / discover) ===
+
+    /** Wire format: "LNGRP1|groupId|createdAtMs|createdBy|name|symKey|count|dev|disp|role|..." */
+    private val GROUP_SYNC_MAGIC = "LNGRP1"
+
+    /** Escape reserved chars so '|' can be used as a plain separator. */
+    private fun esc(s: String): String = buildString(s.length) {
+        for (c in s) when (c) {
+            '\\' -> append("\\\\")
+            '|' -> append("\\p")
+            '\n' -> append("\\n")
+            '\r' -> append("\\r")
+            else -> append(c)
+        }
+    }
+
+    /** Single-pass unescape — safe against injection-style sequences. */
+    private fun unesc(s: String): String {
+        val sb = StringBuilder(s.length)
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            if (c == '\\' && i + 1 < s.length) {
+                when (s[i + 1]) {
+                    'p' -> { sb.append('|'); i += 2 }
+                    'n' -> { sb.append('\n'); i += 2 }
+                    'r' -> { sb.append('\r'); i += 2 }
+                    '\\' -> { sb.append('\\'); i += 2 }
+                    else -> { sb.append(c); i++ }
+                }
+            } else {
+                sb.append(c); i++
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Distribute a group definition (id, name, key, members) to each member.
+     * Payload is pipe-encoded and encrypted pairwise per recipient with the
+     * existing X25519 shared secret — only authorized members can read it.
+     * Receiving side upserts idempotently, so resending is safe.
+     * Returns number of frames queued.
+     */
+    fun distributeGroup(group: GroupStore.Group): Int {
+        val sb = StringBuilder(GROUP_SYNC_MAGIC)
+            .append('|').append(esc(group.groupId))
+            .append('|').append(group.createdAtMs)
+            .append('|').append(esc(group.createdBy))
+            .append('|').append(esc(group.name))
+            .append('|').append(group.symmetricKey)
+            .append('|').append(group.members.size)
+        for (m in group.members) {
+            sb.append('|').append(esc(m.deviceId))
+                .append('|').append(esc(m.displayName))
+                .append('|').append(esc(m.role))
+        }
+        val plaintext = sb.toString().toByteArray(StandardCharsets.UTF_8)
+        var sent = 0
+        for (member in group.members) {
+            if (member.deviceId == identityDeviceId) continue
+            val peer = peerStore.authorized(member.deviceId)
+            if (peer == null) {
+                Log.w(TAG, "distributeGroup: member not authorized yet: ${member.deviceId}")
+                continue
+            }
+            val sharedSecret = MeshCrypto.computeSharedSecret(
+                identityPrivateKey, MeshCrypto.unb64(peer.publicKey)
+            )
+            val aad = "MeshNet:${member.deviceId}".toByteArray(StandardCharsets.UTF_8)
+            val frame = MeshFrame(
+                type = MessageType.GROUP_CREATE,
+                hopLimit = MAX_HOP,
+                ttl = 6,
+                encrypted = true,
+                senderId = identityDeviceId,
+                targetId = member.deviceId,
+                msgSeq = nextSeq(),
+                payload = MeshCrypto.encrypt(sharedSecret, plaintext, aad),
+                senderPublicKey = null,
+            )
+            emitForSend(frame, transportHint(member.deviceId))
+            sent++
+        }
+        Log.i(TAG, "Group '${group.name}' distributed to $sent member(s)")
+        return sent
+    }
+
+    /** Receive a group definition: decrypt pairwise, upsert locally, notify UI. */
+    private fun handleGroupCreate(frame: MeshFrame) {
+        if (frame.targetId != identityDeviceId && frame.targetId != "broadcast") {
+            if (frame.hopLimit > 0) relayFrame(frame)
+            return
+        }
+        if (frame.senderId == identityDeviceId) return
+        val peer = peerStore.authorized(frame.senderId) ?: run {
+            Log.w(TAG, "GROUP_CREATE from unauthorized sender ignored")
+            return
+        }
+        val sharedSecret = MeshCrypto.computeSharedSecret(
+            identityPrivateKey, MeshCrypto.unb64(peer.publicKey)
+        )
+        try {
+            val aad = "MeshNet:$identityDeviceId".toByteArray(StandardCharsets.UTF_8)
+            val plain = String(MeshCrypto.decrypt(sharedSecret, frame.payload, aad), StandardCharsets.UTF_8)
+            val parts = plain.split("|")
+            if (parts.size < 7 || parts[0] != GROUP_SYNC_MAGIC) {
+                Log.w(TAG, "GROUP_CREATE bad format")
+                sendDeliveryReport(frame, false)
+                return
+            }
+            val groupId = unesc(parts[1])
+            val createdAtMs = parts[2].toLongOrNull() ?: 0L
+            val createdBy = unesc(parts[3])
+            val name = unesc(parts[4])
+            val symmetricKey = parts[5]
+            val count = parts[6].toIntOrNull() ?: 0
+            if (groupId.isEmpty() || name.isEmpty() || symmetricKey.isEmpty() ||
+                count < 1 || parts.size < 7 + count * 3
+            ) {
+                Log.w(TAG, "GROUP_CREATE missing required fields")
+                sendDeliveryReport(frame, false)
+                return
+            }
+            val members = mutableListOf<GroupStore.GroupMember>()
+            for (i in 0 until count) {
+                val deviceId = unesc(parts[7 + i * 3])
+                if (deviceId.isNotEmpty()) {
+                    members.add(GroupStore.GroupMember(
+                        deviceId = deviceId,
+                        displayName = unesc(parts[8 + i * 3]),
+                        role = unesc(parts[9 + i * 3]),
+                    ))
+                }
+            }
+            // Defensive: always include self so we can send/receive in this group.
+            if (members.none { it.deviceId == identityDeviceId }) {
+                members.add(GroupStore.GroupMember(
+                    deviceId = identityDeviceId,
+                    displayName = "",
+                    role = "member",
+                ))
+            }
+            val group = GroupStore.Group(
+                groupId = groupId,
+                name = name,
+                members = members,
+                symmetricKey = symmetricKey,
+                createdAtMs = createdAtMs,
+                createdBy = createdBy,
+            )
+            groupStore.updateGroup(group)
+            listenerList.forEach { it.onGroupReceived(group.groupId, group.name, group.members.size) }
+            sendDeliveryReport(frame, true)
+            Log.i(TAG, "Group synced: '$name' (${group.members.size} members)")
+        } catch (e: Exception) {
+            Log.w(TAG, "GROUP_CREATE decrypt/parse failed: ${e.message}")
+            sendDeliveryReport(frame, false)
+        }
+    }
+
     // === VOICE MESSAGE HANDLER ===
 
     private fun handleVoiceMsg(frame: MeshFrame) {
@@ -1034,8 +1257,42 @@ class RoutingEngine(
             if (frame.hopLimit > 0) relayFrame(frame)
             return
         }
-        listenerList.forEach { it.onVoiceMessageReceived(frame.senderId, frame.payload, "${frame.senderId}:${frame.msgSeq}") }
-        sendDeliveryReport(frame, true)
+        decryptAndDeliverVoice(frame)
+    }
+
+    /** Voice payload (plain): [durationMs 4B BE][codec 1B 'O'|'A'][audio...] */
+    private fun decryptAndDeliverVoice(frame: MeshFrame) {
+        val peer = peerStore.authorized(frame.senderId)
+        if (peer == null) {
+            Log.w(TAG, "Voice sender not authorized: ${frame.senderId} — not reading")
+            return
+        }
+        try {
+            val sharedSecret = MeshCrypto.computeSharedSecret(
+                identityPrivateKey,
+                MeshCrypto.unb64(peer.publicKey)
+            )
+            val aad = "MeshNet:${frame.targetId}".toByteArray(StandardCharsets.UTF_8)
+            val plain = MeshCrypto.decrypt(sharedSecret, frame.payload, aad)
+            if (plain.size < VOICE_HEADER_SIZE) {
+                sendDeliveryReport(frame, false)
+                return
+            }
+            val durationMs = ((plain[0].toInt() and 0xFF) shl 24) or
+                ((plain[1].toInt() and 0xFF) shl 16) or
+                ((plain[2].toInt() and 0xFF) shl 8) or
+                (plain[3].toInt() and 0xFF)
+            val audio = plain.copyOfRange(VOICE_HEADER_SIZE, plain.size)
+            val codec = if (plain[4] == CODEC_OPUS) "opus" else "aac"
+            val msgId = "${frame.senderId}:${frame.msgSeq}"
+            listenerList.forEach {
+                it.onVoiceMessageReceived(frame.senderId, audio, msgId, durationMs, codec)
+            }
+            sendDeliveryReport(frame, true)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not decrypt voice message: ${e.message}")
+            sendDeliveryReport(frame, false)
+        }
     }
 
     // === DOUBLE RATCHET HANDLERS ===
@@ -1113,18 +1370,20 @@ class RoutingEngine(
         return transferId
     }
 
-    fun sendVoiceMessage(targetId: String, audioData: ByteArray, durationMs: Int): String? {
+    fun sendVoiceMessage(targetId: String, audioData: ByteArray, durationMs: Int, codec: String = "aac"): String? {
         val peer = peerStore.authorized(targetId) ?: return null
         val sharedSecret = MeshCrypto.computeSharedSecret(identityPrivateKey, MeshCrypto.unb64(peer.publicKey))
         val aad = "MeshNet:$targetId".toByteArray(Charsets.UTF_8)
         val encryptedBytes = MeshCrypto.encrypt(sharedSecret, audioData, aad)
 
-        val payload = ByteArray(4 + encryptedBytes.size)
+        // Plain header on the receiving side: [durationMs 4B BE][codec 1B]
+        val payload = ByteArray(VOICE_HEADER_SIZE + encryptedBytes.size)
         payload[0] = (durationMs ushr 24).toByte()
         payload[1] = (durationMs ushr 16).toByte()
         payload[2] = (durationMs ushr 8).toByte()
         payload[3] = durationMs.toByte()
-        System.arraycopy(encryptedBytes, 0, payload, 4, encryptedBytes.size)
+        payload[4] = if (codec.equals("opus", ignoreCase = true)) CODEC_OPUS else CODEC_AAC
+        System.arraycopy(encryptedBytes, 0, payload, VOICE_HEADER_SIZE, encryptedBytes.size)
 
         val frame = MeshFrame(
             type = MessageType.VOICE_MSG,
@@ -1139,6 +1398,16 @@ class RoutingEngine(
         )
         emitForSend(frame, null)
         return "${identityDeviceId}:${frame.msgSeq}"
+    }
+
+    /** Store/replace a group definition locally (used after GROUP_CREATE sync). */
+    fun storeGroup(group: GroupStore.Group) {
+        groupStore.updateGroup(group)
+    }
+
+    /** Look up a locally stored group definition. */
+    fun getStoredGroup(groupId: String): GroupStore.Group? {
+        return groupStore.getGroup(groupId)
     }
 
     fun sendGroupMessage(groupId: String, message: String): String? {

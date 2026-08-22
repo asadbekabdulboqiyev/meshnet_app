@@ -77,6 +77,13 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 
+        <!-- MeshNet background service (fon rejimda mesh tarmoqni saqlash) -->
+        <service
+            android:name=".transport.MeshBackgroundService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice|dataSync"
+            android:permission="android.permission.FOREGROUND_SERVICE" />
+
         <!-- Phase 4: APK fayllarni tizim o'rnatuvchiga xavfsiz ulashish -->
         <provider
             android:name="androidx.core.content.FileProvider"

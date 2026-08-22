@@ -1,12 +1,19 @@
 package com.meshnet.meshnet_app.localnet.rbac
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
+
+import kotlin.concurrent.thread
 
 /**
  * RBAC Access Control for LocalNet mesh resources.
  * Manages device roles per resource (board, doc, poll, gateway, etc.)
  * and enforces permissions.
+ *
+ * CRITICAL: Role grants can be cryptographically signed via ECDSA P-256
+ * using SigningIdentity. When a signed grant is received, call
+ * applySignedRoleGrant() to verify and apply it.
+ *
+ * Wire protocol: ROLE_GRANT (0x77) — payload "grantId|roleName|targetDeviceId|grantedAtMs|signatureB64"
  */
 class AccessControl {
 
@@ -132,6 +139,59 @@ class AccessControl {
 
     fun isBanned(deviceId: String): Boolean = getDeviceRole(deviceId) == Role.BANNED
 
+    /** Verify and apply a signed role grant.
+     *  Payload: "grantId|roleName|targetDeviceId|grantedAtMs|signatureB64"
+     *  Signature: base64 DER ECDSA signature over payload bytes (excluding signature itself)
+     *  Returns true if signature validates and role grant was applied.
+     *
+     *  Example usage when receiving ROLE_GRANT (0x77) wire protocol message:
+     *    val payload = "${grantId}|${role.name}|${targetDeviceId}|${grantedAtMs}"
+     *    val signature = signatureB64 from the message
+     *    accessControl.applySignedRoleGrant(
+     *        signerPublicKeyB64, grantId, role.name, targetDeviceId, grantedAtMs, signature
+     *    )
+     */
+    fun applySignedRoleGrant(
+        signerPublicKeyB64: String,
+        grantId: String,
+        roleName: String,
+        targetDeviceId: String,
+        grantedAtMs: Long,
+        signatureB64: String
+    ): Boolean {
+        try {
+            // 1. Construct the canonical payload (excluding signature)
+            val payload = "${grantId}|${roleName}|${targetDeviceId}|${grantedAtMs}"
+
+            // 2. Verify signature using SigningIdentity (same package, accessible)
+            val payloadBytes = payload.toByteArray(Charsets.UTF_8)
+            val isValid = SigningIdentity.verify(
+                signerPublicKeyB64,
+                payloadBytes,
+                signatureB64
+            )
+            if (!isValid) return false
+
+            // 3. Apply the role grant if signature is valid
+            val role = Role.values().firstOrNull { it.name.equals(roleName, ignoreCase = true) }
+            if (role == null) return false
+
+            // Set device-wide role
+            setDeviceRole(targetDeviceId, role)
+
+            // Set per-resource role (mesh as resourceType for device-wide)
+            setRole("mesh", targetDeviceId, targetDeviceId, role)
+
+            // 4. Persist the grant note: in a full impl, would write to DB role_grants table
+            // grantRole(grantId, targetDeviceId, role, signerDeviceId)
+
+            return true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return false
+        }
+    }
+
     // --- Serialization for persistence ---
 
     fun snapshot(): Map<String, Any> {
@@ -165,6 +225,7 @@ class AccessControl {
     }
 }
 
+/** Holder for AccessControl singleton management. */
 object AccessControlHolder {
     @Volatile private var INSTANCE: AccessControl? = null
 

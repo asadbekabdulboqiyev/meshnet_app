@@ -157,8 +157,9 @@ class CollabServiceTest {
         assertEquals(1, rev1)
         val rev2 = service.editDocLocal("notes", "second draft")
         assertEquals(2, rev2)
-        val frame = emitted.last { it.type == MessageType.DOC_EDIT }
-        assertEquals("notes|2|", String(frame.payload).take(8))
+        // Edits now broadcast FULL doc state (DOC_ANNOUNCE) for creation sync.
+        val frame = emitted.last { it.type == MessageType.DOC_ANNOUNCE }
+        assertTrue(String(frame.payload).startsWith("notes|2|"))
         assertTrue(events.contains("doc:notes:2"))
     }
 
@@ -176,9 +177,11 @@ class CollabServiceTest {
     }
 
     @Test
-    fun unknownDocEditIgnored() {
+    fun unknownDocEditAutoCreates() {
+        // Changed behavior: legacy DOC_EDIT for an unseen doc now auto-creates
+        // it (title falls back to the docId) instead of silently dropping.
         service.onDocEdit(remoteFrame(MessageType.DOC_EDIT, "ghost|2|999|${DocStateB64("hi")}"))
-        assertNull(service.docs["ghost"])
+        assertEquals("hi", service.docs["ghost"]?.text)
     }
 
     private fun DocStateB64(s: String): String =

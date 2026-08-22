@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
+import 'onboarding_screen.dart';
 
 /// Splash screen — no gradient, clean.
 class SplashScreen extends StatefulWidget {
@@ -35,17 +37,24 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _mainCtrl.forward();
 
-    Future.delayed(const Duration(milliseconds: 2000), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 350),
-          pageBuilder: (_, __, ___) => const HomeScreen(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
-        ),
-      );
-    });
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed = prefs.getBool('onboarding_completed') ?? false;
+
+    await Future.delayed(const Duration(milliseconds: 2000));
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (_, _, _) => completed ? const HomeScreen() : const OnboardingScreen(),
+        transitionsBuilder: (_, anim, _, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
+    );
   }
 
   @override

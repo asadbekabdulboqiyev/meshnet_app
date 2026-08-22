@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'permissions.dart' as perms;
 
 /// MeshNet — Flutter bridge to the Kotlin mesh engine.
 /// Wrapper class around MethodChannel + EventChannel.
@@ -54,6 +56,10 @@ class MeshService {
     } catch (e) {
       return false;
     }
+  }
+
+  Future<List<Permission>> requestMeshPermissions() {
+    return perms.requestMeshPermissions();
   }
 
   Future<Map<String, dynamic>?> getLocalIdentity() async {
@@ -192,6 +198,41 @@ class MeshService {
     return result as String?;
   }
 
+  // Voice message playback control
+  Future<bool> playVoiceMessage(String messageId) async {
+    try {
+      final result = await _method.invokeMethod('playVoiceMessage', {
+        'messageId': messageId,
+      });
+      return result == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> pauseVoiceMessage(String messageId) async {
+    try {
+      final result = await _method.invokeMethod('pauseVoiceMessage', {
+        'messageId': messageId,
+      });
+      return result == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> setVoicePlaybackSpeed(String messageId, double speed) async {
+    try {
+      final result = await _method.invokeMethod('setVoicePlaybackSpeed', {
+        'messageId': messageId,
+        'speed': speed,
+      });
+      return result == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>?> createGroup(String name, List<String> memberDeviceIds) async {
     try {
       final result = await _method.invokeMethod('createGroup', {
@@ -216,15 +257,15 @@ class MeshService {
     }
   }
 
-  Future<bool> sendGroupMessage(String groupId, String message) async {
+  Future<String?> sendGroupMessage(String groupId, String message) async {
     try {
       final result = await _method.invokeMethod('sendGroupMessage', {
         'groupId': groupId,
         'message': message,
       });
-      return result == true;
+      return result as String?;
     } catch (e) {
-      return false;
+      return null;
     }
   }
 
@@ -613,8 +654,8 @@ class MeshService {
         'level': level,
         'title': title,
         'message': message,
-        if (location != null) 'location': location,
-        if (coordinates != null) 'coordinates': coordinates,
+        'location': ?location,
+        'coordinates': ?coordinates,
         'ttlMinutes': ttlMinutes,
         'requiresAck': requiresAck,
       });
@@ -712,8 +753,8 @@ class MeshService {
       final result = await _method.invokeMethod('checkPermission', {
         'deviceId': deviceId,
         'permission': permission,
-        if (resourceType != null) 'resourceType': resourceType,
-        if (resourceId != null) 'resourceId': resourceId,
+        'resourceType': ?resourceType,
+        'resourceId': ?resourceId,
       });
       return result is Map && result['hasPermission'] == true;
     } catch (e) {
@@ -741,6 +782,26 @@ class MeshService {
     }
   }
 
+  /// Xabarlar ichida qidiruv (lokal bazada).
+  Future<List<Map<String, dynamic>>> searchMessages({
+    required String query,
+    String? deviceId,
+    int limit = 50,
+  }) async {
+    try {
+      final result = await _method.invokeMethod('searchMessages', {
+        'query': query,
+        'deviceId': ?deviceId,
+        'limit': limit,
+      });
+      if (result is List) {
+        return result.map((m) => Map<String, dynamic>.from(m)).toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
   // ---------------- Phase 6: Mesh-wide Search ----------------
 
   /// Mahalliy search (indexda).

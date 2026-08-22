@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import 'admin_view.dart';
 import 'app_store_view.dart';
 import 'collab_view.dart';
+import 'diagnostics_view.dart';
 import 'emergency_view.dart';
 import 'host_files_page.dart';
 import 'internet_view.dart';
@@ -485,12 +486,61 @@ class _LocalNetViewState extends ConsumerState<LocalNetView> {
                           ),
                           Icon(Icons.chevron_right_rounded,
                               color: MeshAppTheme.textDim),
-                        ],
+],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  // ---- My Files header ----
+                    ),
+                    const SizedBox(height: 20),
+                    // ---- Diagnostics entry ----
+                    InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const DiagnosticsView(),
+                        ));
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              MeshAppTheme.bgCard,
+                              MeshAppTheme.bgElevated,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: MeshAppTheme.borderLight),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.bug_report_rounded,
+                                color: MeshAppTheme.error, size: 26),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Diagnostics',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15)),
+                                  SizedBox(height: 2),
+                                  Text(
+                                      'System health, connectivity, logs, export.',
+                                      style: TextStyle(
+                                          color: MeshAppTheme.textGray,
+                                          fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right_rounded,
+                                color: MeshAppTheme.textDim),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // ---- My Files header ----
                   Row(
                     children: [
                       Icon(Icons.folder_shared_rounded,
@@ -510,32 +560,35 @@ class _LocalNetViewState extends ConsumerState<LocalNetView> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (_sharedFiles.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: MeshAppTheme.bgCard,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: MeshAppTheme.border),
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(Icons.upload_file_rounded,
-                              color: MeshAppTheme.textDim, size: 32),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No files shared yet.\n'
-                            'Tap + to share a file with nearby LocalNet peers.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: MeshAppTheme.textGray, fontSize: 13),
+                  _sharedFiles.isEmpty
+                      ? Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: MeshAppTheme.bgCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: MeshAppTheme.border),
                           ),
-                        ],
-                      ),
-                    )
-                  else
-                    ..._sharedFiles.map(_fileCard),
-                  const SizedBox(height: 20),
+                          child: Column(
+                            children: [
+                              Icon(Icons.upload_file_rounded,
+                                  color: MeshAppTheme.textDim, size: 32),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No files shared yet.\n'
+                                'Tap + to share a file with nearby LocalNet peers.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: MeshAppTheme.textGray, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            ..._sharedFiles.map(_fileCard),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
                   // ---- Hosts header ----
                   Row(
                     children: [
@@ -548,32 +601,36 @@ class _LocalNetViewState extends ConsumerState<LocalNetView> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (hosts.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: MeshAppTheme.bgCard,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: MeshAppTheme.border),
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(Icons.cloud_off_rounded,
-                              color: MeshAppTheme.textDim, size: 32),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No hosts discovered yet.\n'
-                            'Nearby LocalNet devices appear here automatically.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: MeshAppTheme.textGray, fontSize: 13),
+                  hosts.isEmpty
+                      ? Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: MeshAppTheme.bgCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: MeshAppTheme.border),
                           ),
-                        ],
-                      ),
-                    )
-                  else
-                    ...hosts.map(_hostCard),
-                ],
+                          child: Column(
+                            children: [
+                              Icon(Icons.cloud_off_rounded,
+                                  color: MeshAppTheme.textDim, size: 32),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No hosts discovered yet.\n'
+                                'Nearby LocalNet devices appear here automatically.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: MeshAppTheme.textGray, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            ...hosts.map(_hostCard),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+],
               ),
             ),
     );
@@ -615,7 +672,7 @@ class _LocalNetViewState extends ConsumerState<LocalNetView> {
               color: MeshAppTheme.error,
               tooltip: 'Stop sharing',
               onPressed: () => _unshare(f),
-            ),
+),
           ],
         ),
       ),
