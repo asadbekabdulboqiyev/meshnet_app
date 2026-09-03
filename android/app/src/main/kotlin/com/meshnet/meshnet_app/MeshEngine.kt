@@ -7,6 +7,9 @@ import android.os.Looper
 import android.util.Log
 import com.meshnet.meshnet_app.crypto.MeshCrypto
 import com.meshnet.meshnet_app.localnet.LocalNetService
+import com.meshnet.meshnet_app.localnet.emergency.EmergencyManager
+import com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.AlertLevel
+import com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.EmergencyAlert
 import com.meshnet.meshnet_app.protocol.FileTransferManager
 import com.meshnet.meshnet_app.protocol.GroupStore
 import com.meshnet.meshnet_app.protocol.MeshFrame
@@ -790,7 +793,7 @@ class MeshEngine(private val context: Context) {
                 val coordinates = call.argument<String>("coordinates")
                 val ttlMinutes = call.argument<Number>("ttlMinutes")?.toInt() ?: 60
                 val requiresAck = call.argument<Boolean>("requiresAck") ?: true
-                val alertLevel = com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.AlertLevel.fromPriority(level)
+                val alertLevel = AlertLevel.fromPriority(level)
                 val alert = ln.sendEmergencyAlert(alertLevel, title, message, location, coordinates, ttlMinutes, requiresAck)
                 result.success(mapOf(
                     "alertId" to alert.alertId,
@@ -1364,7 +1367,7 @@ class MeshEngine(private val context: Context) {
         }
 
         // Phase 6: Emergency
-        override fun onEmergencyAlert(alert: com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.EmergencyAlert) {
+        override fun onEmergencyAlert(alert: EmergencyAlert) {
             emit("emergencyAlert", mapOf(
                 "alertId" to alert.alertId,
                 "senderId" to alert.senderId,

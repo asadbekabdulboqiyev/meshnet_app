@@ -13,9 +13,24 @@ import kotlin.concurrent.thread
  * using SigningIdentity. When a signed grant is received, call
  * applySignedRoleGrant() to verify and apply it.
  *
- * Wire protocol: ROLE_GRANT (0x77) — payload "grantId|roleName|targetDeviceId|grantedAtMs|signatureB64"
+ * SECURITY (FIX): Grants now have expiration timestamps and can be revoked.
+ * Expired or revoked grants are automatically rejected during permission checks.
+ *
+ * Wire protocol: ROLE_GRANT (0x77) — payload "grantId|roleName|targetDeviceId|grantedAtMs|expiresAtMs|signatureB64"
  */
 class AccessControl {
+
+    /** Represents a single role grant with expiration and revocation status. */
+    data class RoleGrant(
+        val grantId: String,
+        val roleName: String,
+        val targetDeviceId: String,
+        val grantedAtMs: Long,
+        val expiresAtMs: Long,  // 0 = never expires
+        val signerDeviceId: String = "",
+    ) {
+        fun isExpired(): Boolean = expiresAtMs > 0 && System.currentTimeMillis() > expiresAtMs
+    }
 
     // resourceType -> resourceId -> deviceId -> Role
     private val roleAssignments = ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Role>>>()
@@ -23,6 +38,12 @@ class AccessControl {
 
     // Device default role (mesh-wide)
     private val deviceRoles = ConcurrentHashMap<String, Role>()
+
+    // Active grants: grantId -> RoleGrant
+    private val activeGrants = ConcurrentHashMap<String, RoleGrant>()
+
+    // Revoked grant IDs (permanent revocation)
+    private val revokedGrantIds = ConcurrentHashMap.newKeySet<String>()
 
     // Role change listeners
     private val listeners = mutableListOf<RoleChangeListener>()
@@ -85,25 +106,47 @@ class AccessControl {
         }
     }
 
-    // --- Permission checks ---
+    // --- Permission checks (FIX: check expiration + revocation) ---
 
     fun hasPermission(deviceId: String, permission: Permission): Boolean {
+        // Check if device is banned
+        if (isBanned(deviceId)) return false
+
+        // Check if any active grant for this device has expired or been revoked
+        if (!areGrantsValidForDevice(deviceId)) return false
+
         val role = getDeviceRole(deviceId)
         return permissionSet.hasPermission(role, permission)
     }
 
     fun hasPermission(deviceId: String, resourceType: String, resourceId: String, permission: Permission): Boolean {
+        if (isBanned(deviceId)) return false
+        if (!areGrantsValidForDevice(deviceId)) return false
+
         val role = getRole(resourceType, resourceId, deviceId)
         return permissionSet.hasPermission(role, permission)
     }
 
     fun hasAnyPermission(deviceId: String, resourceType: String, resourceId: String, permissions: Set<Permission>): Boolean {
+        if (isBanned(deviceId)) return false
+        if (!areGrantsValidForDevice(deviceId)) return false
+
         val role = getRole(resourceType, resourceId, deviceId)
         return permissions.any { permissionSet.hasPermission(role, it) }
     }
 
     fun canAccess(deviceId: String, resourceType: String, resourceId: String, permission: Permission): Boolean {
         return hasPermission(deviceId, resourceType, resourceId, permission)
+    }
+
+    /** Check if all grants for a device are valid (not expired, not revoked). */
+    private fun areGrantsValidForDevice(deviceId: String): Boolean {
+        val now = System.currentTimeMillis()
+        return activeGrants.values.none { grant ->
+            grant.targetDeviceId == deviceId && (
+                grant.isExpired() || revokedGrantIds.contains(grant.grantId)
+            )
+        }
     }
 
     // --- Owner assignment (first creator becomes owner) ---
@@ -139,16 +182,53 @@ class AccessControl {
 
     fun isBanned(deviceId: String): Boolean = getDeviceRole(deviceId) == Role.BANNED
 
-    /** Verify and apply a signed role grant.
-     *  Payload: "grantId|roleName|targetDeviceId|grantedAtMs|signatureB64"
+    // --- Grant revocation ---
+
+    /** Revoke a specific grant by ID. Permanent — cannot be undone. */
+    fun revokeGrant(grantId: String): Boolean {
+        val grant = activeGrants[grantId] ?: return false
+        revokedGrantIds.add(grantId)
+        // Revoke the role assignment
+        setDeviceRole(grant.targetDeviceId, Role.GUEST)
+        return true
+    }
+
+    /** Check if a specific grant has been revoked. */
+    fun isGrantRevoked(grantId: String): Boolean = revokedGrantIds.contains(grantId)
+
+    /** Check if a specific grant is valid (not expired, not revoked). */
+    fun isGrantValid(grantId: String): Boolean {
+        val grant = activeGrants[grantId] ?: return false
+        return !grant.isExpired() && !revokedGrantIds.contains(grantId)
+    }
+
+    /** Remove expired grants. Returns number of grants removed. */
+    fun cleanupExpiredGrants(): Int {
+        val now = System.currentTimeMillis()
+        val expired = activeGrants.values.filter { it.isExpired() }
+        expired.forEach { activeGrants.remove(it.grantId) }
+        return expired.size
+    }
+
+    /** Get all active (non-expired, non-revoked) grants. */
+    fun getActiveGrants(): List<RoleGrant> {
+        return activeGrants.values.filter { !it.isExpired() && !revokedGrantIds.contains(it.grantId) }
+    }
+
+    /**
+     * Verify and apply a signed role grant.
+     *  Payload: "grantId|roleName|targetDeviceId|grantedAtMs|expiresAtMs|signatureB64"
      *  Signature: base64 DER ECDSA signature over payload bytes (excluding signature itself)
      *  Returns true if signature validates and role grant was applied.
      *
+     *  FIX: Now includes expiration timestamp. Grants with expiresAtMs=0 never expire.
+     *  Revoked grants are rejected.
+     *
      *  Example usage when receiving ROLE_GRANT (0x77) wire protocol message:
-     *    val payload = "${grantId}|${role.name}|${targetDeviceId}|${grantedAtMs}"
+     *    val payload = "${grantId}|${role.name}|${targetDeviceId}|${grantedAtMs}|${expiresAtMs}"
      *    val signature = signatureB64 from the message
      *    accessControl.applySignedRoleGrant(
-     *        signerPublicKeyB64, grantId, role.name, targetDeviceId, grantedAtMs, signature
+     *        signerPublicKeyB64, grantId, role.name, targetDeviceId, grantedAtMs, expiresAtMs, signature
      *    )
      */
     fun applySignedRoleGrant(
@@ -157,11 +237,15 @@ class AccessControl {
         roleName: String,
         targetDeviceId: String,
         grantedAtMs: Long,
+        expiresAtMs: Long,
         signatureB64: String
     ): Boolean {
         try {
+            // 0. Check if grant is already revoked
+            if (revokedGrantIds.contains(grantId)) return false
+
             // 1. Construct the canonical payload (excluding signature)
-            val payload = "${grantId}|${roleName}|${targetDeviceId}|${grantedAtMs}"
+            val payload = "${grantId}|${roleName}|${targetDeviceId}|${grantedAtMs}|${expiresAtMs}"
 
             // 2. Verify signature using SigningIdentity (same package, accessible)
             val payloadBytes = payload.toByteArray(Charsets.UTF_8)
@@ -172,18 +256,28 @@ class AccessControl {
             )
             if (!isValid) return false
 
-            // 3. Apply the role grant if signature is valid
+            // 3. Check if grant is already expired
+            if (expiresAtMs > 0 && System.currentTimeMillis() > expiresAtMs) return false
+
+            // 4. Apply the role grant if signature is valid
             val role = Role.values().firstOrNull { it.name.equals(roleName, ignoreCase = true) }
             if (role == null) return false
+
+            // Store the grant record
+            val grant = RoleGrant(
+                grantId = grantId,
+                roleName = roleName,
+                targetDeviceId = targetDeviceId,
+                grantedAtMs = grantedAtMs,
+                expiresAtMs = expiresAtMs,
+            )
+            activeGrants[grantId] = grant
 
             // Set device-wide role
             setDeviceRole(targetDeviceId, role)
 
             // Set per-resource role (mesh as resourceType for device-wide)
             setRole("mesh", targetDeviceId, targetDeviceId, role)
-
-            // 4. Persist the grant note: in a full impl, would write to DB role_grants table
-            // grantRole(grantId, targetDeviceId, role, signerDeviceId)
 
             return true
         } catch (e: Exception) {
@@ -206,6 +300,14 @@ class AccessControl {
             ra[rType] = rm
         }
         map["roleAssignments"] = ra
+        map["activeGrants"] = activeGrants.mapValues { mapOf(
+            "grantId" to it.value.grantId,
+            "roleName" to it.value.roleName,
+            "targetDeviceId" to it.value.targetDeviceId,
+            "grantedAtMs" to it.value.grantedAtMs,
+            "expiresAtMs" to it.value.expiresAtMs,
+        )}
+        map["revokedGrantIds"] = revokedGrantIds.toList()
         return map
     }
 
@@ -222,6 +324,18 @@ class AccessControl {
             }
             roleAssignments[rType] = rm
         }
+        activeGrants.clear()
+        (snapshot["activeGrants"] as? Map<String, Map<String, Any>>)?.forEach { (grantId, data) ->
+            activeGrants[grantId] = RoleGrant(
+                grantId = grantId,
+                roleName = data["roleName"] as? String ?: "",
+                targetDeviceId = data["targetDeviceId"] as? String ?: "",
+                grantedAtMs = data["grantedAtMs"] as? Long ?: 0,
+                expiresAtMs = data["expiresAtMs"] as? Long ?: 0,
+            )
+        }
+        revokedGrantIds.clear()
+        (snapshot["revokedGrantIds"] as? List<String>)?.forEach { revokedGrantIds.add(it) }
     }
 }
 

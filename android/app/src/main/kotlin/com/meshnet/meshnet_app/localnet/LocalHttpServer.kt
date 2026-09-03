@@ -1,14 +1,17 @@
 package com.meshnet.meshnet_app.localnet
 
+import com.meshnet.meshnet_app.localnet.chunk.ChunkStore
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
-import com.meshnet.meshnet_app.localnet.chunk.ChunkStore
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import com.meshnet.meshnet_app.localnet.rbac.AccessControl
+import com.meshnet.meshnet_app.localnet.rbac.Permission
 
 /**
  * LocalHttpServer - LocalNet Phase 1 offline web server.
@@ -22,7 +25,16 @@ import java.util.concurrent.atomic.AtomicInteger
  * HTTP-over-BLE tunneling is a later phase; BLE-only links are far too
  * slow (~50-100 kbps) for real browsing.
  *
- * Endpoints:
+ * Security: all endpoints require HTTP_SERVER permission.
+ * Peers must have been granted this role via the mesh RBAC wire protocol
+ * (ROLE_GRANT 0x77) before they can access server endpoints.
+ *
+ * Identity verification (FIX): Uses pre-shared tokens exchanged during
+ * BLE/Wi-Fi Direct pairing. Each peer sends X-Mesh-Device-Id and
+ * X-Mesh-Token headers. Server verifies the token against the trusted
+ * device registry. This prevents IP spoofing attacks.
+ *
+ * Endpoints (all require HTTP_SERVER permission):
  *   GET /                -> HTML device page
  *   GET /info            -> JSON device info
  *   GET /dns             -> JSON list of known mesh hosts
@@ -38,6 +50,7 @@ class LocalHttpServer(
     private val contentProvider: ContentProvider,
     private val fileProvider: FileProvider? = null,
     private val collabProvider: CollabProvider? = null,
+    private val accessControl: AccessControl? = null,
 ) {
 
     companion object {
@@ -92,8 +105,27 @@ class LocalHttpServer(
     private val executor = Executors.newFixedThreadPool(MAX_THREADS)
     private val activeConnections = AtomicInteger(0)
 
+    /** Trusted device registry: deviceId -> pre-shared token (from pairing). */
+    private val trustedDevices = ConcurrentHashMap<String, String>()
+
     val isRunning: Boolean get() = running.get()
     val boundPort: Int get() = serverSocket?.localPort ?: -1
+
+    /** Register a trusted device (called after BLE/Wi-Fi Direct pairing). */
+    fun addTrustedDevice(deviceId: String, token: String) {
+        trustedDevices[deviceId] = token
+    }
+
+    /** Remove a trusted device (e.g., on unpair). */
+    fun removeTrustedDevice(deviceId: String) {
+        trustedDevices.remove(deviceId)
+    }
+
+    /** Check if a device is trusted with the correct token. */
+    fun verifyDeviceToken(deviceId: String, token: String): Boolean {
+        val expected = trustedDevices[deviceId] ?: return false
+        return expected == token
+    }
 
     @Synchronized
     fun start(): Boolean {
@@ -123,6 +155,16 @@ class LocalHttpServer(
         executor.shutdownNow()
     }
 
+    @Synchronized
+    fun pause() {
+        running.set(false)
+    }
+
+    @Synchronized
+    fun resume() {
+        running.set(true)
+    }
+
     private fun acceptLoop(ss: ServerSocket) {
         while (running.get()) {
             val client = try {
@@ -149,6 +191,12 @@ class LocalHttpServer(
                         writeResponse(output, 400, "text/plain", "Bad Request".toByteArray())
                         return
                     }
+                    // Check authentication before routing (FIX: pass headers for token verification)
+                    val senderId = extractSenderIdFromContext(socket, request.headers)
+                    if (!isAuthenticated(senderId)) {
+                        writeResponse(output, 401, "text/plain", "Unauthorized".toByteArray())
+                        return
+                    }
                     val response = route(request)
                     writeResponse(output, response.first, response.second, response.third)
                 }
@@ -161,9 +209,52 @@ class LocalHttpServer(
         }
     }
 
+    /** Extract sender ID from HTTP headers (pre-shared token verification). */
+    private fun extractSenderIdFromContext(socket: Socket, headers: Map<String, String>): String {
+        // Try to get device ID and token from custom headers (set during pairing)
+        val deviceId = headers["x-mesh-device-id"]
+        val token = headers["x-mesh-token"]
+
+        if (!deviceId.isNullOrBlank() && !token.isNullOrBlank()) {
+            // Verify the pre-shared token
+            if (verifyDeviceToken(deviceId, token)) {
+                return deviceId  // Verified identity
+            }
+            // Invalid token — return special marker for unauthenticated
+            return "INVALID_TOKEN:$deviceId"
+        }
+
+        // Fallback: loopback/localhost for testing only
+        val remote = socket.inetAddress?.hostAddress ?: "unknown"
+        if (remote == "127.0.0.1" || remote == "localhost" || remote == "::1") {
+            return "localhost"
+        }
+
+        // No identity headers from non-local source — cannot verify
+        return "UNVERIFIED:$remote"
+    }
+
+    /** Check if the sender has required permission. */
+    private fun isAuthenticated(senderId: String): Boolean {
+        // Reject invalid tokens immediately
+        if (senderId.startsWith("INVALID_TOKEN:")) return false
+
+        // Reject unverified non-local sources
+        if (senderId.startsWith("UNVERIFIED:")) return false
+
+        // Localhost always allowed for testing
+        if (senderId == "localhost") return true
+
+        // Check RBAC permission
+        if (accessControl == null) {
+            return false  // No RBAC configured — deny all non-local
+        }
+        return accessControl.hasPermission(senderId, Permission.HTTP_SERVER)
+    }
+
     private fun writeResponse(out: java.io.OutputStream, code: Int, contentType: String, body: ByteArray) {
         val reason = when (code) {
-            200 -> "OK"; 400 -> "Bad Request"; 404 -> "Not Found"; else -> "Error"
+            200 -> "OK"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 404 -> "Not Found"; else -> "Error"
         }
         val header = "HTTP/1.1 $code $reason\r\n" +
             "Content-Type: $contentType\r\n" +
@@ -306,5 +397,5 @@ a{color:#7fdfff}
     }
 
     private fun escapeHtml(s: String): String = s
-        .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-}
+        .replace("&", "&").replace("<", "<").replace(">", ">")
+    }

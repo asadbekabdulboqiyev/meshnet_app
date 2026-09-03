@@ -78,7 +78,10 @@ class DnsRegistryTest {
     fun buildAnnouncePayloadContainsFirstRegisteredTime() {
         val dns = registry(1000)
         dns.registerSelf("asadbek", ID_A, "Asadbek")
-        assertEquals("asadbek|1000", dns.buildAnnouncePayload("asadbek"))
+        // No signing identity set -> signature field is empty (backward compatible)
+        val payload = dns.buildAnnouncePayload("asadbek")
+        assertNotNull(payload)
+        assertTrue(payload!!.startsWith("asadbek|1000"))
         assertNull(dns.buildAnnouncePayload("unknown"))
     }
 

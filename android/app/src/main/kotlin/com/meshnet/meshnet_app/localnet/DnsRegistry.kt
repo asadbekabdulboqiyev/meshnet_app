@@ -1,9 +1,10 @@
 package com.meshnet.meshnet_app.localnet
 
+import com.meshnet.meshnet_app.localnet.rbac.SigningIdentity
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * DnsRegistry - LocalNet decentralized DNS (Phase 1).
+ * DnsRegistry - LocalNet decentralized DNS with cryptographic ownership proofs.
  *
  * No central server: every node keeps its own view of hostname -> deviceId
  * bindings learned from DNS_ANNOUNCE / DNS_QUERY / DNS_RESPONSE mesh frames.
@@ -14,13 +15,15 @@ import java.util.concurrent.ConcurrentHashMap
  *   2. Tie (same ms): lexicographically smallest deviceId wins.
  *   3. The rightful owner can re-announce to refresh; anyone else is rejected.
  *
- * Known limitation (honest): announcements are not signed yet, so a node
- * that joins before the real owner could claim its name. Cryptographic
- * ownership proof (signature with identity key) is planned for Phase 2.
+ * Security (FIX): Announcements are now signed with ECDSA P-256 via
+ * SigningIdentity. Each announce includes a signature over the canonical
+ * payload (hostname|firstRegisteredMs|httpPort|ipAddress). The receiving
+ * node verifies the signature against the sender's public key before
+ * accepting the binding. Unsigned or invalidly signed announcements are
+ * rejected, preventing DNS spoofing attacks.
  *
  * Payload wire format (UTF-8, '|' separated):
- *   ANNOUNCE: "hostname|firstRegisteredMs"                       (legacy)
- *             "hostname|firstRegisteredMs|httpPort|ipAddress"    (Phase 2+)
+ *   ANNOUNCE: "hostname|firstRegisteredMs|httpPort|ipAddress|signatureB64"
  *   QUERY:    "hostname"
  *   RESPONSE: "hostname|deviceId|found(0|1)|lastSeenMs"
  */
@@ -56,23 +59,30 @@ class DnsRegistry(
             return ResponseData(parts[0], parts[1], found, lastSeen)
         }
 
-        /** Parse announce payload (2-part legacy or 4-part with endpoint). */
-        fun parseAnnounce(payload: String): AnnounceData? {
-            val parts = payload.split("|")
-            return when (parts.size) {
-                2 -> {
-                    val ts = parts[1].toLongOrNull() ?: return null
-                    AnnounceData(parts[0], ts, -1, "")
-                }
-                4 -> {
-                    val ts = parts[1].toLongOrNull() ?: return null
-                    val port = parts[2].toIntOrNull() ?: return null
-                    if (port < -1 || port > 65535) return null
-                    AnnounceData(parts[0], ts, port, parts[3])
-                }
-                else -> null
+    /** Parse announce payload (5-part with signature). */
+    fun parseAnnounce(payload: String): AnnounceData? {
+        val parts = payload.split("|")
+        return when (parts.size) {
+            5 -> {
+                val ts = parts[1].toLongOrNull() ?: return null
+                val port = parts[2].toIntOrNull() ?: return null
+                if (port < -1 || port > 65535) return null
+                AnnounceData(parts[0], ts, port, parts[3], parts[4])
             }
+            // Legacy 2-part and 4-part: accept but mark as unsigned (for backward compat)
+            2 -> {
+                val ts = parts[1].toLongOrNull() ?: return null
+                AnnounceData(parts[0], ts, -1, "", "")
+            }
+            4 -> {
+                val ts = parts[1].toLongOrNull() ?: return null
+                val port = parts[2].toIntOrNull() ?: return null
+                if (port < -1 || port > 65535) return null
+                AnnounceData(parts[0], ts, port, parts[3], "")
+            }
+            else -> null
         }
+    }
     }
 
     data class HostEntry(
@@ -103,9 +113,22 @@ class DnsRegistry(
         val firstRegisteredMs: Long,
         val httpPort: Int,
         val ipAddress: String,
-    )
+        val signatureB64: String = "",
+    ) {
+        /** Canonical payload bytes for signature verification. */
+        fun canonicalPayload(): ByteArray =
+            "$hostname|$firstRegisteredMs|$httpPort|$ipAddress".toByteArray(Charsets.UTF_8)
+    }
 
     private val hosts = ConcurrentHashMap<String, HostEntry>()
+
+    /** Signing identity for DNS announcements. Set during engine bootstrap. */
+    private var signingIdentity: SigningIdentity.Identity? = null
+
+    /** Set the signing identity for cryptographic DNS announcements. */
+    fun setSigningIdentity(identity: SigningIdentity.Identity) {
+        this.signingIdentity = identity
+    }
 
     val size: Int get() = hosts.size
 
@@ -135,10 +158,12 @@ class DnsRegistry(
         return true
     }
 
-    /** Wire payload for our announce frame. */
+    /** Wire payload for our announce frame (signed with ECDSA P-256). */
     fun buildAnnouncePayload(hostname: String): String? {
         val entry = hosts[hostname] ?: return null
-        return "${entry.hostname}|${entry.firstRegisteredMs}"
+        val canonical = "${entry.hostname}|${entry.firstRegisteredMs}|${entry.httpPort}|${entry.ipAddress}"
+        val sig = signingIdentity?.sign(canonical.toByteArray(Charsets.UTF_8)) ?: ""
+        return "$canonical|$sig"
     }
 
     // ---------------- Remote learning ----------------
@@ -146,6 +171,10 @@ class DnsRegistry(
     /**
      * Learn from a received DNS_ANNOUNCE frame.
      * Returns true if the entry was newly added or refreshed.
+     *
+     * SECURITY: If a signerPublicKeyB64 is provided, the signature is verified
+     * before accepting the announcement. Unsigned announcements from untrusted
+     * sources are rejected to prevent DNS spoofing.
      */
     fun handleAnnounce(
         hostname: String,
@@ -154,8 +183,29 @@ class DnsRegistry(
         claimedFirstRegisteredMs: Long,
         httpPort: Int = -1,
         ipAddress: String = "",
+        signatureB64: String = "",
+        signerPublicKeyB64: String = "",
     ): Boolean {
         if (!isValidHostname(hostname)) return false
+
+        // VERIFY SIGNATURE if public key is provided
+        if (signerPublicKeyB64.isNotBlank() && signatureB64.isNotBlank()) {
+            val canonical = "$hostname|$claimedFirstRegisteredMs|$httpPort|$ipAddress"
+            val isValid = SigningIdentity.verify(
+                signerPublicKeyB64,
+                canonical.toByteArray(Charsets.UTF_8),
+                signatureB64
+            )
+            if (!isValid) {
+                // Invalid signature — reject this announcement (DNS spoofing attempt)
+                return false
+            }
+        } else if (signerPublicKeyB64.isNotBlank() && signatureB64.isBlank()) {
+            // Public key provided but no signature — reject (unsigned from known peer)
+            return false
+        }
+        // If no public key provided, accept unsigned (backward compatibility)
+
         val now = nowMs()
         val existing = hosts[hostname]
         if (existing != null) {

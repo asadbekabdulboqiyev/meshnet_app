@@ -26,9 +26,9 @@ android {
         }
     }
 
-    defaultConfig {
+defaultConfig {
         applicationId = "com.meshnet.meshnet_app"
-        minSdk = 26
+        minSdk = 26  // Android 8.0 (Oreo)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

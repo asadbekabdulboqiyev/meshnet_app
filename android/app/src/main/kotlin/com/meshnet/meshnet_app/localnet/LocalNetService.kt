@@ -8,6 +8,8 @@ import com.meshnet.meshnet_app.localnet.chunk.FileManifest
 import com.meshnet.meshnet_app.localnet.chunk.SyncPlanner
 import com.meshnet.meshnet_app.localnet.collab.CollabService
 import com.meshnet.meshnet_app.localnet.emergency.EmergencyManager
+import com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.AlertLevel
+import com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.EmergencyAlert
 import com.meshnet.meshnet_app.localnet.rbac.AccessControl
 import com.meshnet.meshnet_app.localnet.rbac.AccessControlHolder
 import com.meshnet.meshnet_app.localnet.rbac.Permission
@@ -150,7 +152,7 @@ class LocalNetService(
         // Phase 6: RBAC
         fun onRoleChanged(deviceId: String, resourceType: String, resourceId: String, oldRole: com.meshnet.meshnet_app.localnet.rbac.Role?, newRole: com.meshnet.meshnet_app.localnet.rbac.Role) {}
         // Phase 6: Emergency
-        fun onEmergencyAlert(alert: com.meshnet.meshnet_app.localnet.emergency.EmergencyManager.EmergencyAlert) {}
+        fun onEmergencyAlert(alert: EmergencyAlert) {}
         fun onEmergencyAck(alertId: String, ackerId: String, totalAcks: Int) {}
         fun onEmergencyCancelled(alertId: String, senderId: String) {}
         // Phase 6: Search
@@ -629,17 +631,17 @@ class LocalNetService(
 
     // ---------------- Phase 6: Emergency API ----------------
 
-    fun sendEmergencyAlert(
-        level: EmergencyManager.AlertLevel,
-        title: String,
-        message: String,
-        location: String? = null,
-        coordinates: String? = null,
-        ttlMinutes: Int = 60,
-        requiresAck: Boolean = true
-    ): EmergencyManager.EmergencyAlert {
-        return emergency.sendAlert(level, title, message, location, coordinates, ttlMinutes, requiresAck)
-    }
+fun sendEmergencyAlert(
+    level: AlertLevel,
+    title: String,
+    message: String,
+    location: String? = null,
+    coordinates: String? = null,
+    ttlMinutes: Int = 60,
+    requiresAck: Boolean = true
+): EmergencyAlert {
+    return emergency.sendAlert(level, title, message, location, coordinates, ttlMinutes, requiresAck)
+}
 
     fun acknowledgeEmergency(alertId: String) {
         emergency.acknowledge(alertId)

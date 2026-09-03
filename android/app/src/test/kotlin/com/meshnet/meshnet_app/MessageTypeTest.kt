@@ -167,7 +167,7 @@ class MessageTypeTest {
 
     @Test
     fun allEntries_count() {
-        assertEquals(37, MessageType.entries.size)
+        assertEquals(40, MessageType.entries.size)
     }
 
     @Test
