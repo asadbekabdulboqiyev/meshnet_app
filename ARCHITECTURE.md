@@ -132,7 +132,7 @@ A ──── B ──── C
 - **Timeout**: 45s without response → peer marked offline
 - **Sweep**: periodic presence check removes stale peers
 
-### Message Types (21 total)
+### Message Types (41 total)
 
 | Type | Code | Purpose |
 |------|------|---------|
@@ -157,6 +157,19 @@ A ──── B ──── C
 | RATCHET_INIT | 0x30 | Double Ratchet session init |
 | RATCHET_MSG | 0x31 | Double Ratchet encrypted message |
 | READ_RECEIPT | 0x50 | Read receipt |
+| TEP_EVENT | 0x29 | Signed TEP app-level event (Teno Event Protocol) |
+
+### TEP (Teno Event Protocol)
+
+MeshNet app-level hodisalarini signature va idempotency bilan tarqatadi
+(`tep/` paketi — `TepEventManager`, vendored `FrameCodec`/`Signature`).
+
+- **Frame**: `MessageType.TEP_EVENT` (0x29), broadcast relay
+- **Eventlar**: `peer.joined`, `message.relayed`, `file.transferred`, `group.updated`
+- **Imzo**: HMAC-SHA256 (32 bayt), kalit identity private key'dan SHA-256
+- **Idempotency**: `event_id` → 24 soat TTL dedupe (loop prevention)
+- **API**: Flutter — `emitTepEvent(type, payload)`, eventlar → `tepEvent` stream
+- **Spec**: `spec/transport-mesh.md` (Teno Event Protocol monorepo)
 
 ### Transport Layer
 

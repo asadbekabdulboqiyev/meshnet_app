@@ -47,7 +47,10 @@ enum class MessageType(val code: Byte) {
     // RBAC / CRDT wire protocol
     ROLE_GRANT(0x77),
     SIGN_KEY(0x78),
-    DOC_OPS(0x79);
+    DOC_OPS(0x79),
+    // TEP (Teno Event Protocol): signed, idempotent app-level events.
+    // Spec: spec/transport-mesh.md — 41 = TEP_EVENT (0x29).
+    TEP_EVENT(0x29);
 
     companion object {
         fun fromCode(code: Byte): MessageType? = entries.firstOrNull { it.code == code }

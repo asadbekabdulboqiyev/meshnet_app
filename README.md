@@ -4,7 +4,7 @@
 
 MeshNet turns Android devices into mesh network nodes. Messages hop through intermediate devices via BLE and Wi-Fi Direct, encrypted end-to-end. When cell towers and WiFi go down, this still works.
 
-**[Download APK](https://github.com/asadbekabdulboqiyev/meshnet_app/releases)** • **[Architecture](ARCHITECTURE.md)** • **AGPL-3.0**
+**[Download APK](https://github.com/asadbekabdulboqiyev/meshnet_app/releases)** • **[Architecture](ARCHITECTURE.md)** • **AGPL-3.0** • **[TEP (Teno Event Protocol)](#tep-events)**
 
 ---
 
@@ -64,3 +64,17 @@ MeshNet employs a **hybrid security architecture** designed for offline resilien
 - **E2E encryption** -- ChaCha20-Poly1305 + X25519 key exchange + Double Ratchet forward secrecy
 - **QR code pairing** -- secure out-of-band device pairing
 - **1:1 and group chat** -- encrypted text messaging
+- **TEP events** -- signed app-level events (`peer.joined`, `file.transferred`) via Teno Event Protocol, broadcast over mesh with idempotency
+
+## TEP Events
+
+MeshNet supports the **Teno Event Protocol (TEP)** for signed, idempotent app-level events broadcast over the mesh.
+
+| Type | Description |
+|------|-------------|
+| `peer.joined` | A new peer has joined the mesh network |
+| `message.relayed` | A multi-hop message relay event |
+| `file.transferred` | A chunked file transfer completed |
+| `group.updated` | Group membership or key change |
+
+**Spec**: `spec/transport-mesh.md` · **Package**: `android/app/src/main/kotlin/.../tep/` (vendored TEP FrameCodec + Signature + TepEnvelope + TepEventManager)
