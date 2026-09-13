@@ -10,8 +10,8 @@ import java.io.File
 import kotlin.random.Random
 
 /**
- * Chunker testlari: bo'lak hajmlari, content hash, stream/bytes pariteti,
- * chekka holatlar (bo'sh fayl, aynan bo'linadigan hajm).
+ * Chunker tests: chunk sizes, content hash, stream/bytes parity,
+ * edge cases (empty file, exactly divisible size).
  */
 class ChunkerTest {
 

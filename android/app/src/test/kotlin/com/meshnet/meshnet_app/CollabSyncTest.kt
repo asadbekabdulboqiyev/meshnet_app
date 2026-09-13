@@ -19,12 +19,12 @@ import org.mockito.Mockito.mock
 import java.io.File
 
 /**
- * LocalNet collab sinxronizatsiyasi testlari.
+ * LocalNet collab synchronization tests.
  *
- * Muammo: broadcast frame'lar (BOARD_STROKE, DOC_EDIT, POLL_CREATE, DNS...)
- * MeshEngine.onFrameToSend'da "broadcast" target sifatida yuborilar,
- * hech qaysi transport uni hal qilolmasdi — frame jimgina tashlab yuborilar.
- * Yechim: flood() + multi-hop relayBroadcast + DOC_ANNOUNCE to'liq holat sinxi.
+ * Issue: broadcast frames (BOARD_STROKE, DOC_EDIT, POLL_CREATE, DNS...) were
+ * sent with a "broadcast" target in MeshEngine.onFrameToSend, and no transport
+ * would resolve it — the frame was silently dropped.
+ * Solution: flood() + multi-hop relayBroadcast + full DOC_ANNOUNCE state sync.
  */
 class CollabSyncTest {
 
@@ -77,7 +77,7 @@ class CollabSyncTest {
     @Test
     fun docAnnounce_peerLearnsDocWithoutLocalCreation() {
         serviceA.ensureDoc("team-notes", "Team Notes")
-        serviceA.editDocLocal("team-notes", "birinchi qator")
+        serviceA.editDocLocal("team-notes", "first line")
 
         // Deliver every broadcast from A to B (simulated radio hop).
         captureA.captured.filter { it.type == MessageType.DOC_ANNOUNCE }
@@ -85,7 +85,7 @@ class CollabSyncTest {
 
         val remote = serviceB.docs["team-notes"]
         assertNotNull("B should learn the doc purely via announce", remote)
-        assertEquals("birinchi qator", remote!!.text)
+        assertEquals("first line", remote!!.text)
     }
 
     @Test
@@ -113,7 +113,7 @@ class CollabSyncTest {
     fun legacyDocEdit_autoCreatesMissingDoc() {
         // Old-path incremental edit for a doc B has never seen must not be dropped.
         val payload = "legacy-doc|3|123456|" +
-            java.util.Base64.getEncoder().encodeToString("salom".toByteArray())
+            java.util.Base64.getEncoder().encodeToString("hello".toByteArray())
         routingB.handleIncomingFrame(
             MeshFrame(
                 type = MessageType.DOC_EDIT,
@@ -122,7 +122,7 @@ class CollabSyncTest {
                 msgSeq = 7, payload = payload.toByteArray(), senderPublicKey = null,
             ),
         )
-        assertEquals("salom", serviceB.docs["legacy-doc"]?.text)
+        assertEquals("hello", serviceB.docs["legacy-doc"]?.text)
     }
 
     // =================== broadcast multi-hop relay ===================

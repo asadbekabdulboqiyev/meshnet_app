@@ -7,7 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** MeshFrame wire-formati: encode/decode roundtrip. */
+/** MeshFrame wire format: encode/decode roundtrip. */
 class MeshFrameTest {
 
     private val idA = "11111111-1111-1111-1111-111111111111"
@@ -23,7 +23,7 @@ class MeshFrameTest {
             senderId = idA,
             targetId = idB,
             msgSeq = 12345,
-            payload = "salom mesh".toByteArray(Charsets.UTF_8),
+            payload = "hello mesh".toByteArray(Charsets.UTF_8),
             senderPublicKey = null,
         )
 
@@ -96,19 +96,19 @@ class MeshFrameTest {
 
     @Test
     fun decodeRejectsGarbage() {
-        // Bosh / kalta input
+        // Empty / short input
         assertNull(MeshFrame.decode(ByteArray(0)))
         assertNull(MeshFrame.decode(ByteArray(10)))
-        // Magic to'g'ri kelmagan
+        // Magic bytes don't match
         val bytes = ByteArray(60) { 0x55 }
         assertNull(MeshFrame.decode(bytes))
     }
 
     @Test
     fun corruptedPayloadChangesBytes() {
-        // Frame formatida payload uzunligi ko'rsatilmagan (qolgan hammasi),
-        // shuning uchun payloadning so'nggi baytini buzish decode'ni buzmaydi.
-        // Yaxlitlik tekshiruvi AEAD tag'ida (MeshCryptoTest) amalga oshadi.
+        // The frame format does not store the payload length (all remaining bytes),
+        // so corrupting the payload's last byte does not break decoding.
+        // Integrity verification happens via the AEAD tag (in MeshCryptoTest).
         val frame = MeshFrame(
             type = MessageType.TEXT,
             hopLimit = 2,

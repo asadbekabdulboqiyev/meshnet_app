@@ -1,67 +1,66 @@
-# MeshNet — PHASE 0: To'liq Tizim Arxitekturasi
+# MeshNet — PHASE 0: Full System Architecture
 
-> **Versiya:** 0.2
-> **Sana:** 2026-08-16
-> **Muallif:** TechCorp — Bosh Direktor (MD) + barcha bo'limlar
-> **Holat:** PHASE 0 (arxitektura) — tasdiqlanmagan, ko'rib chiqishda
-> **Mavjud kod bazasi:** `meshnet_app/` (Flutter UI + Kotlin mesh engine)
-
----
-
-## Mundarija
-
-1. [Maqsad va qamrov](#1-maqsad-va-qamrov)
-2. [A. To'liq tizim arxitekturasi](#a-to'liq-tizim-arxitekturasi)
-3. [B. MVP arxitekturasi](#b-mvp-arxitekturasi)
-4. [C. Protokol dizayni](#c-protokol-dizayni)
-5. [D. Paket formati](#d-paket-formati)
-6. [E. Node identifikatsiyasi](#e-node-identifikatsiyasi)
-7. [F. Peer discovery strategiyasi](#f-peer-discovery-strategiyasi)
-8. [G. Ulanish strategiyasi](#g-ulanish-strategiyasi)
-9. [H. Routing strategiyasi](#h-routing-strategiyasi)
-10. [I. Shifrlash/xavfsizlik arxitekturasi](#i-shifrlashxavfsizlik-arxitekturasi)
-11. [J. Store-and-forward arxitekturasi](#j-store-and-forward-arxitekturasi)
-12. [K. ACK/retry arxitekturasi](#k-ackretry-arxitekturasi)
-13. [L. Node xatoligidan qaytarish](#l-node-xatoligidan-qaytarish)
-14. [M. Flutter ↔ Kotlin arxitekturasi](#m-flutter--kotlin-arxitekturasi)
-15. [N. Android BLE/Wi-Fi strategiyasi](#n-android-blewi-fi-strategiyasi)
-16. [O. Embedded apparat yo'l xaritasi](#o-embedded-apparat-yol-xaritasi)
-17. [P. Repozitoriy tuzilishi](#p-repozitoriy-tuzilishi)
-18. [Q. Jamoa rollari](#q-jamoa-rollari)
-19. [R. Rivojlanish yo'l xaritasi](#r-rivojlanish-yol-xaritasi)
-20. [S. Risk tahlili](#s-risk-tahlili)
-21. [T. Test strategiyasi](#t-test-strategiyasi)
-22. [U. Skalabillik tahlili](#u-skalabillik-tahlili)
-23. [V. Texnologiya tanlash taqqoslanishi](#v-texnologiya-tanlash-taqqoslanishi)
-24. [Platforma cheklovlari (IMPORTANT PLATFORM RULE)](#platforma-cheklovlari)
-25. [Mavjud kod bilan solishtirish va bo'shliqlar](#mavjud-kod-bilan-solishtirish)
-26. [Ko'rib chiqish uchun ochiq qarorlar](#korbid-korish-uchun-ochiq-qarorlar)
+> **Version:** 0.2
+> **Date:** 2026-08-16
+> **Author:** TechCorp — Managing Director (MD) + all departments
+> **Status:** PHASE 0 (architecture) — not yet approved, under review
+> **Existing code base:** `meshnet_app/` (Flutter UI + Kotlin mesh engine)
 
 ---
 
-## 1. Maqsad va qamrov
+## Table of Contents
 
-Ushbu hujjat MeshNet tizimining **to'liq arxitekturasi**ni belgilaydi. Maqsad —
-internet, uyali aloqa va markaziy server bo'lmagan sharoitda odamlar bir-biri
-bilan xabar almasha oladigan **real, jismoniy qurilmalarda ishlaydigan**
-decentralized offline mesh tarmoq qurish.
-
-Hujjat barcha muhim texnik qarorlarda **NE**ni va **NEGA aynan u**ni tushuntiradi.
-Agar biror qarorda noaniqlik bo'lsa, bu ochiq bayon qilinadi va eksperimental
-tekshirish yo'li taklif qilinadi.
-
-**Asosiy tamoyillar:**
-- Haqiqiy tizim — demo emas. Yashirin/soxta networking, soxta shifrlash YO'Q.
-- Fazali rivojlanish: har bir faza sinovdan o'tguncha keyingisiga o'tmaymiz.
-- Kichik jamoa uchun oddiy, lekin 10→100→1000 tugungacha kengaya oladigan
-  arxitektura.
-- Oddiy emas: iloji boricha minimal, lekin zaif emas: xavfsizlik standartlarida.
+1. [Purpose and Scope](#1-purpose-and-scope)
+2. [A. Full System Architecture](#a-full-system-architecture)
+3. [B. MVP Architecture](#b-mvp-architecture)
+4. [C. Protocol Design](#c-protocol-design)
+5. [D. Packet Format](#d-packet-format)
+6. [E. Node Identification](#e-node-identification)
+7. [F. Peer Discovery Strategy](#f-peer-discovery-strategy)
+8. [G. Connection Strategy](#g-connection-strategy)
+9. [H. Routing Strategy](#h-routing-strategy)
+10. [I. Encryption/Security Architecture](#i-encryptionsecurity-architecture)
+11. [J. Store-and-Forward Architecture](#j-store-and-forward-architecture)
+12. [K. ACK/Retry Architecture](#k-ackretry-architecture)
+13. [L. Node Failure Recovery](#l-node-failure-recovery)
+14. [M. Flutter ↔ Kotlin Architecture](#m-flutter--kotlin-architecture)
+15. [N. Android BLE/Wi-Fi Strategy](#n-android-blewi-fi-strategy)
+16. [O. Embedded Hardware Roadmap](#o-embedded-hardware-roadmap)
+17. [P. Repository Structure](#p-repository-structure)
+18. [Q. Team Roles](#q-team-roles)
+19. [R. Development Roadmap](#r-development-roadmap)
+20. [S. Risk Analysis](#s-risk-analysis)
+21. [T. Testing Strategy](#t-testing-strategy)
+22. [U. Scalability Analysis](#u-scalability-analysis)
+23. [V. Technology Comparison](#v-technology-comparison)
+24. [Platform Constraints (IMPORTANT PLATFORM RULE)](#platform-constraints)
+25. [Comparison with Existing Code and Gaps](#comparison-with-existing-code-and-gaps)
+26. [Open Decisions for Review](#open-decisions-for-review)
 
 ---
 
-## 2. A. To'liq Tizim Arxitekturasi
+## 1. Purpose and Scope
 
-### 2.1 Umumiy qatlamlar
+This document defines the **complete architecture** of the MeshNet system. The
+goal is to build a **real, working, decentralized** offline mesh network that
+runs on **physical devices**, enabling people to exchange messages without
+internet, cellular service, or a central server.
+
+For every important technical decision, the document explains **WHAT** is chosen
+and **WHY exactly that**. If any decision is uncertain, it is stated openly and
+an experimental validation path is proposed.
+
+**Core principles:**
+- A real system — not a demo. No fake/simulated networking, no fake encryption.
+- Phased development: we move to the next phase only after the current one is tested.
+- Simple for a small team, yet able to scale from 10→100→1000 nodes.
+- Not simplistic: as minimal as possible, but not weak — security meets standards.
+
+---
+
+## 2. A. Full System Architecture
+
+### 2.1 Overall Layers
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -74,7 +73,7 @@ tekshirish yo'li taklif qilinadi.
 │  DART APP LOGIC (Riverpod)                                   │
 │  Session · Contact model · Message model · UI state          │
 └─────────────────────────────────────────────────────────────┘
-                        │ Platform Channel kontrakti (kontrakt quyida)
+                        │ Platform Channel contract (contract below)
 ┌─────────────────────────────────────────────────────────────┐
 │  MESH CORE (Kotlin — Android)                                │
 │  IdentityStore · MeshCrypto · RoutingEngine · MessageStore · │
@@ -88,22 +87,22 @@ tekshirish yo'li taklif qilinadi.
                         │
 ┌─────────────────────────────────────────────────────────────┐
 │  PHYSICAL LAYER                                              │
-│  Android Bluetooth/Wi-Fi radios · (kelajakda) ESP32/LoRa     │
+│  Android Bluetooth/Wi-Fi radios · (future) ESP32/LoRa        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Nima uchun bu qatlamlar?**
-- **UI (Flutter)** — bitta kod bazasi, keyinchalik iOS'ga ko'chadi. Emergency
-  muhitda soddalik muhim.
-- **Mesh Core (Kotlin)** — BLE/Wi-Fi P2P API'lari faqat native Android'da mavjud.
-  Tarmoq logikasi native'da, UI'dan mustaqil.
-- **Platform Channel** — Flutter va Kotlin o'rtasida qat'iy kontrakt. Bu
-  kontrakt transport implementatsiyasi o'zgarsa ham (masalan BLE → LoRa) UI
-  o'zgarmasligini kafolatlaydi.
-- **Transport layer** — har bir radio alohida modul. Yangi transport qo'shish
-  `TransportManager` orqali bitta nuqtadan.
+**Why these layers?**
+- **UI (Flutter)** — a single code base that can later move to iOS. Simplicity
+  matters in emergency environments.
+- **Mesh Core (Kotlin)** — BLE/Wi-Fi P2P APIs exist only in native Android.
+  Network logic lives in native code, independent of the UI.
+- **Platform Channel** — a strict contract between Flutter and Kotlin. This
+  contract guarantees the UI does not change even if the transport
+  implementation changes (e.g., BLE → LoRa).
+- **Transport layer** — each radio is a separate module. Adding a new transport
+  is done from a single point through `TransportManager`.
 
-### 2.2 Komponentlar oqimi (xabar yuborish misolida)
+### 2.2 Component Flow (sending a message as an example)
 
 ```
 Flutter ChatView
@@ -111,18 +110,18 @@ Flutter ChatView
   → MeshEngine.handleMethodCall("sendMessage")
   → RoutingEngine.sendText()
       → MeshCrypto.encrypt (X25519 shared secret + ChaCha20-Poly1305)
-      → MeshFrame.encode (binary paket)
+      → MeshFrame.encode (binary packet)
   → TransportManager.sendFrame (WIFI → BLE fallback)
-  → radio → havo → qabul qiluvchi
+  → radio → air → receiving device
 ```
 
-### 2.3 Oqim ma'lumotlari (eventlar)
+### 2.3 Incoming Data Flow (events)
 
 ```
-Transport (BLE/Wi-Fi frame qabul)
+Transport (BLE/Wi-Fi frame received)
   → TransportManager.onFrameReceived
-  → RoutingEngine.handleIncomingFrame (dublikat tekshiruvi → type bo'yicha)
-  → decryptAndDeliver (agar bizga)
+  → RoutingEngine.handleIncomingFrame (duplicate check → by type)
+  → decryptAndDeliver (if addressed to us)
       → MessageStore.addIncoming
       → EventChannel emit("messageReceived")
   → Dart incomingMessagesProvider
@@ -131,267 +130,268 @@ Transport (BLE/Wi-Fi frame qabul)
 
 ---
 
-## 3. B. MVP Arxitekturasi
+## 3. B. MVP Architecture
 
-### 3.1 MVP qamrovi
+### 3.1 MVP Scope
 
-| # | Imkoniyat | Maqsad |
+| # | Capability | Goal |
 |---|-----------|--------|
-| 1 | 2-5 ta Android telefon | PHASE 1-2 |
+| 1 | 2-5 Android phones | PHASE 1-2 |
 | 2 | BLE + Wi-Fi Direct transport | PHASE 1 |
-| 3 | QR orqali juftlash (identity tekshiruv) | PHASE 3 |
-| 4 | Matnli chat (E2E shifrlangan) | PHASE 3 |
+| 3 | QR pairing (identity verification) | PHASE 3 |
+| 4 | Text chat (E2E encrypted) | PHASE 3 |
 | 5 | 2-hop relay (A→B→C) | PHASE 2 |
-| 6 | Delivery statusi (sent/delivered/failed) | PHASE 3 |
-| 7 | Tarmoq topologiyasi (debug) | PHASE 2 |
-| 8 | Store-and-forward (offline qabul) | PHASE 5 |
+| 6 | Delivery status (sent/delivered/failed) | PHASE 3 |
+| 7 | Network topology (debug) | PHASE 2 |
+| 8 | Store-and-forward (offline receipt) | PHASE 5 |
 
-### 3.2 MVP'da YO'Q (ataylab)
+### 3.2 Deliberately OUT of MVP
 
-- Ovozli/qo'ng'iroq, video, fayl almashish
-- Forward secrecy (kalit almashish sessiya darajasida) — keyingi faza
-- iOS — Android MVP tasdiqlangach
-- LoRa / embedded node — PHASE 7-8
-- Metadata privacy (traffic analysis'dan himoya) — advanced privacy
+- Voice/calls, video, file sharing
+- Forward secrecy (key exchange at session level) — next phase
+- iOS — after the Android MVP is validated
+- LoRa / embedded nodes — PHASE 7-8
+- Metadata privacy (protection against traffic analysis) — advanced privacy
 
-### 3.3 MVP komponentlari (mavjud kod bilan mos)
+### 3.3 MVP Components (aligned with existing code)
 
-| Komponent | Fayl | Holat |
+| Component | File | Status |
 |-----------|------|-------|
-| Flutter UI (5 ekran) | `lib/` | ✅ bor |
-| MethodChannel wrapper | `lib/core/mesh_service.dart` | ✅ bor |
-| Identity | `IdentityStore.kt` | ✅ bor (Xavfsizlik zaxirasi bilan) |
-| Crypto | `crypto/MeshCrypto.kt` | ✅ bor |
-| Frame encode/decode | `protocol/MeshFrame.kt` | ✅ bor |
-| Routing | `protocol/RoutingEngine.kt` | ✅ bor (tuzatishlar kerak) |
-| BLE | `transport/BleTransport.kt` | ⚠️ bug bor (qarang §25) |
-| Wi-Fi Direct | `transport/WifiDirectTransport.kt` | ⚠️ bug bor |
-| Peer/Message storage | `storage/*.kt` | ✅ bor |
+| Flutter UI (5 screens) | `lib/` | ✅ present |
+| MethodChannel wrapper | `lib/core/mesh_service.dart` | ✅ present |
+| Identity | `IdentityStore.kt` | ✅ present (with Security reserve) |
+| Crypto | `crypto/MeshCrypto.kt` | ✅ present |
+| Frame encode/decode | `protocol/MeshFrame.kt` | ✅ present |
+| Routing | `protocol/RoutingEngine.kt` | ✅ present (fixes needed) |
+| BLE | `transport/BleTransport.kt` | ⚠️ has bugs (see §25) |
+| Wi-Fi Direct | `transport/WifiDirectTransport.kt` | ⚠️ has bugs |
+| Peer/Message storage | `storage/*.kt` | ✅ present |
 
 ---
 
-## 4. C. Protokol Dizayni
+## 4. C. Protocol Design
 
-### 4.1 Xabar turlari
+### 4.1 Message Types
 
-| Kod | Tur | Maqsad | Lifecycle | Xavfsizlik |
+| Code | Type | Purpose | Lifecycle | Security |
 |-----|-----|--------|-----------|------------|
-| 0x01 | `PEER_PING` | Borlik belgisi (heartbeat) | doimiy, low-power | shifrlanishi shart emas (metadata ochiq) |
-| 0x02 | `TEXT` | Shifrlangan chat xabari | CREATED→QUEUED→FORWARDED→DELIVERED | E2E shifrlangan |
-| 0x03 | `PAIR_REQ` | QR juftlash so'rovi | bir marta | public key ochiq, o'zaro tekshiruv |
-| 0x04 | `PAIR_ACK` | Juftlash qabuli | bir marta | public key ochiq |
-| 0x05 | `RELAY` | Oraliq tugun retranslyatsiyasi | o'tkinchi | ichida E2E frame, relay o'qiy olmaydi |
-| 0x06 | `DELIVERY_REPORT` | Yetkazish hisoboti (ACK) | A→...→A | faqat meta; final qabul qiluvchi tomonidan |
-| 0x07 | `FIND_PEER` | Tarmoqda qidiruv (route recovery) | so'rov/javob | ochiq meta |
-| 0x08 | `FIND_PEER_ACK` | Qidiruvga javob (topilgan tugun) | so'rov/javob | ochiq meta, pubkey bilan |
+| 0x01 | `PEER_PING` | Presence indicator (heartbeat) | recurring, low-power | encryption not required (metadata is open) |
+| 0x02 | `TEXT` | Encrypted chat message | CREATED→QUEUED→FORWARDED→DELIVERED | E2E encrypted |
+| 0x03 | `PAIR_REQ` | QR pairing request | one-shot | public key open, mutual verification |
+| 0x04 | `PAIR_ACK` | Pairing acknowledgement | one-shot | public key open |
+| 0x05 | `RELAY` | Intermediate node retransmission | transient | contains an E2E frame; relay cannot read it |
+| 0x06 | `DELIVERY_REPORT` | Delivery report (ACK) | A→...→A | metadata only; authored by the final recipient |
+| 0x07 | `FIND_PEER` | Network search (route recovery) | request/reply | open metadata |
+| 0x08 | `FIND_PEER_ACK` | Search reply (node found) | request/reply | open metadata, with pubkey |
 
-**Kelajakka mo'ljallangan turlar** (PHASE 4+): `ROUTE_REQUEST`, `ROUTE_RESPONSE`,
+**Future-oriented types** (PHASE 4+): `ROUTE_REQUEST`, `ROUTE_RESPONSE`,
 `ROUTE_ERROR`, `SOS`, `BROADCAST`.
 
-**Nima uchun `SOS` alohida tur?** SOS boshqa tur sifatida: (1) yuqori priority,
-(2) boshqa foydalanuvchilarga (hatto paired bo'lmaganlarga) yuborilishi mumkin,
-(3) store-and-forward qoidalari boshqacha. MVP'da SOS yo'q — PHASE 4-5 da.
+**Why is `SOS` a separate type?** SOS is distinct because: (1) it has high
+priority, (2) it can be sent to other users (even those not paired), (3) its
+store-and-forward rules differ. SOS is not in the MVP — it arrives in PHASE 4-5.
 
-### 4.2 Protokol qoidalari
+### 4.2 Protocol Rules
 
-1. **Broadcast** target: hammaga `target_id = all-zero`.
-2. **Dublikat**: `(sender_id, msg_seq)` juftligi seen-cache'da tekshiriladi.
-3. **TTL**: har relay'da `ttl = ttl - 1`; `ttl = 0` → DROP.
-4. **Hop limit**: MVP'da 2; PHASE 4+ da routing ma'lumotiga ko'ra.
-5. **Frame yaxlitligi**: `magic + version` tekshiruvi; noto'g'ri frame → tashlab
-   yuborish (log bilan).
-6. **Malicious input**: har qanday kelgan frame parse qilinishidan oldin uzunlik
-   va format tekshiruvidan o'tadi. Exception → drop, crash emas.
+1. **Broadcast** target: `target_id = all-zero` for everyone.
+2. **Duplicates**: the `(sender_id, msg_seq)` pair is checked in the seen-cache.
+3. **TTL**: `ttl = ttl - 1` on each relay; `ttl = 0` → DROP.
+4. **Hop limit**: 2 in the MVP; PHASE 4+ based on routing information.
+5. **Frame integrity**: `magic + version` check; invalid frames are dropped
+   (with logging).
+6. **Malicious input**: every incoming frame is length- and format-checked
+   before parsing. Exceptions → drop, not crash.
 
 ---
 
-## 5. D. Paket Formati
+## 5. D. Packet Format
 
-### 5.1 Tanlov: JSON / CBOR / binary
+### 5.1 Choice: JSON / CBOR / binary
 
-| Mezon | JSON | CBOR | Binary (qat'iy) |
+| Criterion | JSON | CBOR | Binary (strict) |
 |-------|------|------|------------------|
-| Hajm (30 bayt header) | ~120 bayt | ~55 bayt | **43 bayt** |
-| Parse tezligi | sekin | o'rtacha | **eng tez** |
-| BLE MTU (244 B) sig'imi | ~100 bayt payload | ~180 bayt | **~200 bayt** |
-| Deterministik layout | yo'q | qisman | **ha** |
-| O'qish osonligi | ✅ | o'rtacha | og'ir (hujjat kerak) |
-| Embedded (ESP32) | sekin | o'rtacha | **eng mos** |
+| Size (30-byte header) | ~120 bytes | ~55 bytes | **43 bytes** |
+| Parse speed | slow | average | **fastest** |
+| BLE MTU (244 B) capacity | ~100 bytes payload | ~180 bytes | **~200 bytes** |
+| Deterministic layout | no | partial | **yes** |
+| Readability | ✅ | average | hard (requires documentation) |
+| Embedded (ESP32) | slow | average | **best fit** |
 
-**Qaror:** binary qat'iy frame. **Nima uchun:** BLE MTU 244 bayt — har bir bayt
-muhim. Payload ko'p hollarda shifrlangan matn (Chacha20-Poly1305 tag + nonce),
-shuning uchun JSON o'sha hajmda faqat 40-50% samarali. Deterministik layout
-embedded qurilmalarda (C da) ham bir xil kodlanadi.
+**Decision:** binary strict frame. **Why:** the BLE MTU is 244 bytes — every
+byte matters. The payload is usually encrypted text (ChaCha20-Poly1305 tag +
+nonce), so JSON is only 40-50% efficient at that size. The deterministic layout
+is encoded identically even on embedded devices (in C).
 
-**Taqdim etilayotgan frame** (joriy `MeshFrame.kt` + kengaytmalar):
+**Proposed frame** (current `MeshFrame.kt` + extensions):
 
-| Offset | Maydon | Hajm | Izoh |
+| Offset | Field | Size | Notes |
 |--------|--------|------|------|
 | 0-1 | magic `0x4D 0x4E` | 2 | "MN" |
 | 2 | version | 1 | `0x01` |
 | 3 | type | 1 | MessageType code |
 | 4 | hop_limit | 1 | MVP: 2 |
-| 5 | ttl | 1 | maks 8 |
+| 5 | ttl | 1 | max 8 |
 | 6 | flags | 1 | bit0=encrypted, bit1=priority(SOS) |
 | 7-22 | sender_id | 16 | UUID (128-bit) |
 | 23-38 | target_id | 16 | broadcast = all-zero |
-| 39-46 | msg_seq | 8 | epoch-ms Long (relay orqali aniq saqlanadi) |
-| **47-48** | **payload_len** | **2** | **YANGI: framing uchun zarur (BLE chunk) |
-| 49-? | sender_pubkey | 32* | faqat PAIR_REQ/PAIR_ACK |
-| ? | payload | n | shifrlangan matn |
+| 39-46 | msg_seq | 8 | epoch-ms Long (preserved exactly across relays) |
+| **47-48** | **payload_len** | **2** | **NEW: required for framing (BLE chunk)** |
+| 49-? | sender_pubkey | 32* | only for PAIR_REQ/PAIR_ACK |
+| ? | payload | n | encrypted text |
 
-**Nima uchun `payload_len` qo'shish kerak:** BLE xabari chunklarga bo'linadi.
-Hozirgi kod chunk uzunligini o'zi boshqaradi, lekin qabul qiluvchi to'liq
-frameni qachon tugaganini bilishi uchun uzunlik aniq bo'lishi kerak. Bu maydon
-Wi-Fi socket protocol'da ham (`DataInputStream.readInt`) allaqachon bor — BLE
-tomonda ham bir xil bo'lsin.
+**Why `payload_len` must be added:** BLE messages are split into chunks. The
+current code manages chunk length itself, but the receiver needs an explicit
+length to know when the full frame is complete. This field already exists in the
+Wi-Fi socket protocol (`DataInputStream.readInt`) — the BLE side should match it.
 
 ### 5.2 Node ID — 128-bit UUID
 
-- **Nega 128-bit:** UUID standarti, Flutter/Kotlin/UUID ta'minoti mavjud,
-  kolliziya ehtimoli amalda nolga teng. (Reticulum 80-bit ishlatadi — bizning
-  MVP uchun kerak emas, 16 bayt frame'da to'liq mos.)
-- Broadcast: 16 bayt nol.
+- **Why 128-bit:** it is the UUID standard, Flutter/Kotlin/UUID support exists,
+  and the collision probability is practically zero. (Reticulum uses 80-bit —
+  not needed for our MVP, and 16 bytes fit perfectly in the frame.)
+- Broadcast: 16 zero bytes.
 
 ---
 
-## 6. E. Node Identifikatsiyasi
+## 6. E. Node Identification
 
-### 6.1 Arxitektura
+### 6.1 Architecture
 
 ```
 Device
- ├── Node ID        (128-bit UUID, bir marta generatsiya)
- ├── Public Key     (X25519, 32 bayt)  — ochiq, QR'da ko'rinadi
- └── Private Key    (X25519, 32 bayt)  — hech qachon qurilmadan chiqmaydi
+ ├── Node ID        (128-bit UUID, generated once)
+ ├── Public Key     (X25519, 32 bytes)  — public, visible in the QR
+ └── Private Key    (X25519, 32 bytes)  — never leaves the device
 ```
 
-- **Node ID** — qurilmaning ochiq identifikatori (tarmoqda "MN-7F3A92" kabi
-  qisqa ko'rinishda).
-- **X25519 kalit juftligi** — identifikatsiya + kalit almashish uchun. Node ID
-  va public key bir-biriga bog'liq: ID = hash(public_key) bo'lishi mumkin
-  (identity = key). Bu "identity-committed" yondashuv.
-  - **Nima uchun identity = public key hash'i?** Impersonatsiya qilishning
-    oldini oladi: kimdir sizning ID'ingizni egallashi uchun sizning *private
-    key'ingiz* kerak. Bir paytning o'zida Node ID avtomatik generatsiya bo'ladi.
-  - **Hozirgi holat:** ID random UUID, kalit alohida — bu ham yaroqli, lekin
-    keyingi fazada ID=hash(pubkey) ga o'tish tavsiya.
+- **Node ID** — the device's public identifier (shown in the network as a short
+  form like "MN-7F3A92").
+- **X25519 key pair** — used for identification and key exchange. The Node ID and
+  the public key are linked: ID can be `hash(public_key)` (identity = key). This
+  is the "identity-committed" approach.
+  - **Why identity = hash of the public key?** It prevents impersonation:
+    someone needs your *private key* to take over your ID. The Node ID is also
+    generated automatically at the same time.
+  - **Current state:** the ID is a random UUID and the key is separate — this is
+    also valid, but switching to ID=hash(pubkey) is recommended in the next phase.
 
-### 6.2 Identity saqlash, reset, rotatsiya, qaytarish
+### 6.2 Identity storage, reset, rotation, recovery
 
-| Hodisa | Yondashuv | Nega |
+| Event | Approach | Why |
 |--------|-----------|------|
-| **Saqlash** | Private key → **Android Keystore** (hardware-backed, API 23+). Hozir SharedPreferences'da — MVP chegarasi, PHASE 9 da Keystore'ga ko'chiriladi | Keystore xavfsizroq; SharedPreferences root qilingan qurilmada o'qilishi mumkin |
-| **Device reset** | Yangi identity generatsiya qilinadi; eski kalitlar yo'qoladi | Dizayn bo'yicha: private key qaytarib bo'lmaydi |
-| **Key rotation** | MVP: yo'q. PHASE 6+: eski kalit bilan imzolangan rotatsiya sertifikati | Bir kalit umrbod — kompromet bo'lsa butun identity xavf ostida |
-| **Recovery (backup)** | Faqat **public** material nusxalanishi mumkin (QR/papka). Private key backup YO'Q | Private key backup = xavfsizlik nuqsoni |
-| **Identity tekshiruv** | QR juftlash — out-of-band kanal (vizual). Ikki tomon o'zaro public key'larni tasdiqlaydi | MITM'dan himoya: QR faqat qo'lda ko'rsatiladi |
+| **Storage** | Private key → **Android Keystore** (hardware-backed, API 23+). Currently in SharedPreferences — an MVP limitation; moved to Keystore in PHASE 9 | Keystore is more secure; SharedPreferences can be read on rooted devices |
+| **Device reset** | A new identity is generated; old keys are lost | By design: the private key cannot be recovered |
+| **Key rotation** | MVP: none. PHASE 6+: rotation certificate signed with the old key | A single lifelong key puts the whole identity at risk if compromised |
+| **Recovery (backup)** | Only **public** material can be copied (QR/folder). No private key backup | Private key backup is a security flaw |
+| **Identity verification** | QR pairing — an out-of-band (visual) channel. Both parties confirm each other's public keys | MITM protection: the QR is only shown in person |
 
 ---
 
-## 7. F. Peer Discovery Strategiyasi
+## 7. F. Peer Discovery Strategy
 
 ### 7.1 BLE discovery
 
-- **Advertise:** har tugun o'zini BLE reklamada e'lon qiladi:
+- **Advertise:** every node announces itself in a BLE advertisement:
   - Service UUID `6a4e9f01-...` (MeshNet)
-  - Device name = displayName (reklama nomi)
-  - Mode: `LOW_LATENCY` faol / `LOW_POWER` pasaytirilgan (battery)
-- **Scan:** `SCAN_MODE_LOW_POWER` fon, `LOW_LATENCY` on-demand (pull-to-refresh).
-  Service UUID filter — boshqa BLE qurilmalarini ko'rmaslik uchun.
-- **RSSI:** discovery'da qayd etiladi; yangi skan natijasi eski qiymatni
-  yangilaydi.
-- **Cooldown:** bitta peer uchun discovery event'larini qisqa muddatda
-  takrorlamaslik (event flood'ni oldini olish).
+  - Device name = displayName (advertisement name)
+  - Mode: `LOW_LATENCY` active / `LOW_POWER` reduced (battery)
+- **Scan:** `SCAN_MODE_LOW_POWER` in the background, `LOW_LATENCY` on-demand
+  (pull-to-refresh). Service UUID filter to avoid seeing other BLE devices.
+- **RSSI:** recorded at discovery; a new scan result updates the old value.
+- **Cooldown:** avoid repeating discovery events for a single peer within a
+  short window (prevent event flooding).
 
 ### 7.2 Wi-Fi Direct discovery
 
 - `discoverPeers()` + `WIFI_P2P_PEERS_CHANGED_ACTION` receiver.
-- `WifiP2pDevice.AVAILABLE` → peer topildi; `UNAVAILABLE` → peer ketdi.
+- `WifiP2pDevice.AVAILABLE` → peer found; `UNAVAILABLE` → peer gone.
 
-### 7.3 Discovery → PeerStore oqimi
+### 7.3 Discovery → PeerStore flow
 
 ```
-Topildi (BLE/Wi-Fi)
+Found (BLE/Wi-Fi)
   → PeerStore.upsert(deviceId, displayName, rssi, transport, lastSeen=now)
   → emit("peerDiscovered")
-  → Dart peersProvider (FutureProvider) yangilanadi
+  → Dart peersProvider (FutureProvider) is updated
 ```
 
-**MUHIM BO'SHLIQ (joriy kodda):** `TransportManager.bleListener.onPeerDiscovered`
-faqat log yozadi — PeerStore'ga **upsert qilmaydi**, event emas. Shuning uchun
-UI "Tarmoq qamrovi" hech qachon to'ldirilmaydi. Bu PHASE 1'ning birinchi
-tuzatishlaridan biri (§25).
+**IMPORTANT GAP (in the current code):**
+`TransportManager.bleListener.onPeerDiscovered` only writes a log — it does
+**not upsert** into PeerStore and does not emit the event. As a result, the UI
+"Network coverage" is never populated. This is one of the first fixes of PHASE 1
+(§25).
 
 ---
 
-## 8. G. Ulanish Strategiyasi
+## 8. G. Connection Strategy
 
-### 8.1 BLE ulanish modeli
+### 8.1 BLE connection model
 
-- **Presence:** reklama doim yoqilgan (lazy connection uchun — "men shu yerdaman").
-- **Connection:** **on-demand (lazy)** — faqat xabar yuborish kerak bo'lganda
-  GATT connection ochiladi.
-  - **Nega lazy?** Android'da qurilma uchun faqat ~7-9 ta bir vaqtda GATT
-    client ulanishi bo'ladi. Doim hamma bilan ulanish = darhol limitga yetamiz.
-  - Connection pool: eski/faolsiz ulanishlar yopiladi (LRU).
-- **Xabar almashish:** GATT characteristic write/notify. Uzun xabarlar
-  chunklarga bo'linadi (244 bayt / ATT MTU).
-- **Disconnect:** RSSI yo'qolsa yoki 30s faolsiz bo'lsa.
+- **Presence:** advertising is always on (for lazy connection — "I am here").
+- **Connection:** **on-demand (lazy)** — a GATT connection is opened only when a
+  message needs to be sent.
+  - **Why lazy?** On Android, a device supports only ~7-9 simultaneous GATT
+    client connections. Staying connected to everyone immediately hits the limit.
+  - Connection pool: idle/old connections are closed (LRU).
+- **Message exchange:** GATT characteristic write/notify. Long messages are
+  split into chunks (244 bytes / ATT MTU).
+- **Disconnect:** when RSSI is lost or after 30s of inactivity.
 
-### 8.2 Wi-Fi Direct ulanish modeli
+### 8.2 Wi-Fi Direct connection model
 
-- Guruh tuzish: har node `createGroup` (Group Owner) yoki mavjud guruhga qo'shilish.
-- TCP socket (PORT 4864): GO ↔ client. Guruh kattaligi Android'da odatda 5-8.
-- Socketlar kafolatli: guruh ichida persistent.
+- Group formation: each node either calls `createGroup` (Group Owner) or joins an
+  existing group.
+- TCP socket (PORT 4864): GO ↔ client. Group size on Android is typically 5-8.
+- Sockets are reliable: persistent within the group.
 
-### 8.3 Qatlamlararo tanlov
+### 8.3 Cross-layer selection
 
-`TransportManager.sendFrame` tartibi: **Wi-Fi Direct → BLE fallback**.
-- **Nega Wi-Fi birinchi?** Tezlik va throughput yuqori, socket protokol soddaroq,
-  xabar chunklash shart emas.
-- **Nega BLE ikkinchi?** Presence (borlik) va kichik xabarlar uchun battery
-  jihatidan tejamkor. BLE'da hamma ham Wi-Fi Direct guruhiga kirmagan bo'lishi
-  mumkin.
+`TransportManager.sendFrame` order: **Wi-Fi Direct → BLE fallback**.
+- **Why Wi-Fi first?** Higher speed and throughput, simpler socket protocol, no
+  message chunking required.
+- **Why BLE second?** Battery-efficient for presence and small messages. Not
+  everyone on BLE is necessarily in the same Wi-Fi Direct group.
 
 ---
 
-## 9. H. Routing Strategiyasi
+## 9. H. Routing Strategy
 
-### 9.1 Routing algoritmlarini taqqoslash
+### 9.1 Routing algorithm comparison
 
-| Mezon | Flooding | BATMAN-ish (proactive rank) | AODV (reactive) | DSR |
+| Criterion | Flooding | BATMAN-like (proactive rank) | AODV (reactive) | DSR |
 |-------|----------|------------------------------|-----------------|-----|
-| Latency | past (darhol) | past | yuqori (route topish) | o'rtacha |
-| Battery | yuqori xarajat | o'rtacha | past (talab bo'yicha) | past |
-| Bandwidth | yuqori | o'rtacha | past | past |
-| Memory | past | past | o'rtacha | yuqori |
-| Skalabillik (10-20) | ✅ yaxshi | ✅ | ✅ | o'rtacha |
-| Skalabillik (100+) | ❌ portlash | o'rtacha | o'rtacha | ❌ |
-| Mobil node'lar | ✅ eng yaxshi | ✅ | o'rtacha | zaif |
-| Implementatsiya murakkabligi | **eng past** | o'rtacha | o'rtacha | yuqori |
-| Konvergensiya (route topish) | yo'q (doim yangi) | tez | sekin | sekin |
+| Latency | low (immediate) | low | high (route discovery) | average |
+| Battery | high cost | average | low (on demand) | low |
+| Bandwidth | high | average | low | low |
+| Memory | low | low | average | high |
+| Scalability (10-20) | ✅ good | ✅ | ✅ | average |
+| Scalability (100+) | ❌ explosion | average | average | ❌ |
+| Mobile nodes | ✅ best | ✅ | average | weak |
+| Implementation complexity | **lowest** | average | average | high |
+| Convergence (route discovery) | none (always fresh) | fast | slow | slow |
 
-### 9.2 Qaror
+### 9.2 Decision
 
-**MVP → Controlled Flooding (nazoratli flooding).**
+**MVP → Controlled Flooding.**
 
-Nima uchun:
-1. 5-20 tugun uchun flooding xarajati juda past — har xabar 2-3 nusxada.
-2. Route jadvali YO'Q → konvergensiya vaqti YO'Q → mobil node'lar bilan ham
-   ishlaydi (har qanday vaqtda "yo'l" doim yangi).
-3. Node yo'qolsa, yangi flood avtomatik yangi yo'l topadi (PHASE 6 ga tayyor).
-4. Eng oddiy va eng ishonchli MVP boshlanishi.
+Why:
+1. For 5-20 nodes the flooding cost is very low — each message exists in only
+   2-3 copies.
+2. No route table → no convergence time → works with mobile nodes (the "path" is
+   always fresh at any moment).
+3. If a node disappears, a new flood automatically finds a new path (ready for
+   PHASE 6).
+4. The simplest and most reliable MVP start.
 
-Flooding nazorat mexanizmlari:
-- **TTL** (maks 8) — loop cheklovi.
-- **Hop limit** (MVP: 2) — yangi tugun chegarasi.
-- **Seen-cache** (dublikat) — `(sender_id, msg_seq)`.
-- **Cache expiry:** seen-cache'da yozuv 60 soniya yashaydi (RTT shkalasida),
-  keyin o'chiriladi (yangilangan xabarlar o'tishi uchun, lekin flood
-  qaytarmaslik uchun).
+Flooding control mechanisms:
+- **TTL** (max 8) — loop limit.
+- **Hop limit** (MVP: 2) — limit on new nodes.
+- **Seen-cache** (duplicates) — `(sender_id, msg_seq)`.
+- **Cache expiry:** a seen-cache entry lives for 60 seconds (on the RTT scale),
+  then is removed (so refreshed messages pass through, but floods are not
+  rebroadcast).
 
-### 9.3 RoutingEngine abstraksiyasi
+### 9.3 RoutingEngine abstraction
 
 ```kotlin
 interface RoutingEngine {
@@ -402,41 +402,42 @@ interface RoutingEngine {
 }
 ```
 
-Arxitektura routing algoritmini keyinchalik almashtirishga imkon beradi:
-`FloodingRoutingEngine` (MVP) → `RankRoutingEngine` (BATMAN-ish, PHASE 4).
+The architecture allows replacing the routing algorithm later:
+`FloodingRoutingEngine` (MVP) → `RankRoutingEngine` (BATMAN-like, PHASE 4).
 
-### 9.4 Joriy kod tahlili
+### 9.4 Current code analysis
 
-`RoutingEngine.kt` allaqachon 2-hop flooding qiladi (RELAY turi bilan). Uchun
-tuzatishlar kerak:
-- `ttl` ni amalda kamaytirish (`hopLimit` ga tayanish bug'li — relay'da TTL
-  ham kamayishi kerak).
-- `seenMessages` cache'siga expiry qo'shish (hozir cheksiz o'sadi — memory leak).
-- Broadcast (all-zero target) qo'llab-quvvatlash.
+`RoutingEngine.kt` already performs 2-hop flooding (using the RELAY type). Fixes
+are needed:
+- Actually decrement `ttl` (relying on `hopLimit` is buggy — the TTL must also
+  decrease at each relay).
+- Add expiry to the `seenMessages` cache (it currently grows without bound —
+  memory leak).
+- Support broadcast (all-zero target).
 
 ---
 
-## 10. I. Shifrlash/Xavfsizlik Arxitekturasi
+## 10. I. Encryption/Security Architecture
 
-### 10.1 Tanlov: primitivlar
+### 10.1 Choice: primitives
 
-| Komponent | Tanlov | Alternativ | Nega tanlandi |
+| Component | Choice | Alternative | Why chosen |
 |-----------|--------|------------|----------------|
-| Kalit almashish | **X25519** (static identity keys) | ECDH P-256 | Curves, resistance, keng qo'llab-quvvatlash (BouncyCastle) |
-| Maxfiylik + yaxlitlik | **ChaCha20-Poly1305** (AEAD) | AES-GCM | AES-GCM telefondan tashqari (ESP32) hardware acceleratsiya talab qiladi; ChaCha20-Poly1305 software'da tez va xavfsiz |
-| Imzo (PHASE 4+) | **Ed25519** | ECDSA | O'ziga xos, tez, xavfsiz |
-| Replay himoya | nonce + msg_seq + seen-cache | — | standart usul |
+| Key exchange | **X25519** (static identity keys) | ECDH P-256 | Curves resistance, broad support (BouncyCastle) |
+| Confidentiality + integrity | **ChaCha20-Poly1305** (AEAD) | AES-GCM | AES-GCM requires hardware acceleration outside phones (ESP32); ChaCha20-Poly1305 is fast and safe in software |
+| Signature (PHASE 4+) | **Ed25519** | ECDSA | Distinctive, fast, secure |
+| Replay protection | nonce + msg_seq + seen-cache | — | standard approach |
 
-**MUHIM:** `ChaCha20-Poly1305` JCE `Cipher` **Android API 28+** da mavjud.
-`minSdk = 26` bo'lsa, API 26-27 qurilmalarda exception tashlanadi. Yechim:
-- **BouncyCastle provider** orqali `Cipher.getInstance("ChaCha20-Poly1305", "BC")`
-  (bcprov 1.79 allaqachon dependency'da). Bu barcha API'da ishlaydi.
-- Yoki `minSdk` ni 28 ga ko'tarish.
+**IMPORTANT:** the `ChaCha20-Poly1305` JCE `Cipher` is available on **Android
+API 28+**. With `minSdk = 26`, API 26-27 devices throw an exception. Solutions:
+- Use `Cipher.getInstance("ChaCha20-Poly1305", "BC")` via the **BouncyCastle
+  provider** (bcprov 1.79 is already a dependency). Works on all APIs.
+- Or raise `minSdk` to 28.
 
-**Tavsiya:** BouncyCastle provider'ni `Security.addProvider()` orqali ishga
-tushirish (bir satr), minSdk 26 ni saqlash.
+**Recommendation:** enable the BouncyCastle provider via `Security.addProvider()`
+(one line) and keep `minSdk = 26`.
 
-### 10.2 Sessiya kaliti sxemasi
+### 10.2 Session key scheme
 
 ```
 Alice (X25519)            Bob (X25519)
@@ -448,159 +449,159 @@ Alice (X25519)            Bob (X25519)
    encrypt(msg, secret) ────▶ decrypt(msg, secret)
 ```
 
-- Har bir (men, peer) juftligi uchun bitta static shared secret.
-- **Forward secrecy: MVP'da YO'Q** (static key). PHASE 6+: ephemeral
-  X25519 + ratchet (Signal-style) yoki HPKE.
-  - **Risq:** agar private key kompromet bo'lsa, eski xabarlar o'qilishi mumkin.
-  - **Yumshatish:** MVP'da kalit faqat qurilmada, QR faqat qo'lda; xavf past.
+- One static shared secret per (self, peer) pair.
+- **Forward secrecy: NOT in the MVP** (static key). PHASE 6+: ephemeral
+  X25519 + ratchet (Signal-style) or HPKE.
+  - **Risk:** if a private key is compromised, old messages can be read.
+  - **Mitigation:** in the MVP the key stays only on the device and the QR is
+    only shown in person; the risk is low.
 
 ### 10.3 AAD (Associated Authenticated Data)
 
-`aad = "MeshNet:" + targetId` — routing ma'lumotini shifrga bog'laydi: qabul
-qiluvchi shifrni ochayotganda AAD to'g'ri bo'lmasa, tag ishlamaydi. Bu "replay
-boshqa targetga" hujumini oldini oladi. ✅ joriy kodda allaqachon bor.
+`aad = "MeshNet:" + targetId` — binds the routing information to the ciphertext:
+if the AAD is wrong while the receiver decrypts, the tag fails. This prevents a
+"replay to another target" attack. ✅ already present in the current code.
 
 ### 10.4 Identity verification
 
-- QR juftlash: visual kanal — MITM'dan himoya.
-- Juftlashdan keyin `PeerStore.markAuthorized(deviceId, pubKey)`.
+- QR pairing: a visual channel — protection against MITM.
+- After pairing: `PeerStore.markAuthorized(deviceId, pubKey)`.
 
-### 10.5 Xavfsizlik maqsadlari × MVP holati
+### 10.5 Security goals × MVP status
 
-| Maqsad | MVP | Izoh |
+| Goal | MVP | Notes |
 |--------|-----|------|
-| E2E shifrlash | ✅ | X25519 + ChaCha20-Poly1305 |
-| Autentifikatsiya | ✅ | Identity = kalit, QR tekshiruv |
-| Yaxlitlik | ✅ | AEAD tag |
-| Replay himoya | ✅ | nonce + seen-cache |
+| E2E encryption | ✅ | X25519 + ChaCha20-Poly1305 |
+| Authentication | ✅ | Identity = key, QR verification |
+| Integrity | ✅ | AEAD tag |
+| Replay protection | ✅ | nonce + seen-cache |
 | Forward secrecy | ⏳ | PHASE 6 |
-| Key management | ⚠️ | Keystore PHASE 9; hozir SharedPreferences |
-| Identity tekshiruv | ✅ | QR |
+| Key management | ⚠️ | Keystore in PHASE 9; currently SharedPreferences |
+| Identity verification | ✅ | QR |
 
-### 10.6 Threat model (xulosa — to'liq jadval §S)
+### 10.6 Threat model (summary — full table in §S)
 
-| Tahdid | Impact | Ehtimol | Yumshatish | Qoldiq risk |
+| Threat | Impact | Likelihood | Mitigation | Residual risk |
 |--------|--------|---------|------------|-------------|
-| Eavesdropping | yuqori | o'rta | E2E (relay o'qiy olmaydi) | past |
-| MITM | yuqori | past | QR out-of-band | past |
-| Replay | o'rta | past | nonce + seen-cache | past |
-| Node impersonation | yuqori | past | identity=kalit | past |
-| Sybil | o'rta | o'rta | QR tasdiqlash (faqat authorized) | o'rta |
-| Packet flooding (DoS) | o'rta | o'rta | seen-cache + rate limit (PHASE 9) | o'rta |
-| Fake ACK | past | past | ACK final qabul qiluvchi orqali; MVP oddiy | o'rta |
-| Malicious relay | o'rta | past | relay faqat meta ko'radi, E2E himoya | past |
-| Traffic analysis | o'rta | o'rta | **MVP da ochiq** — metadata leaki | yuqori |
+| Eavesdropping | high | medium | E2E (relay cannot read) | low |
+| MITM | high | low | QR out-of-band | low |
+| Replay | medium | low | nonce + seen-cache | low |
+| Node impersonation | high | low | identity=key | low |
+| Sybil | medium | medium | QR confirmation (authorized only) | medium |
+| Packet flooding (DoS) | medium | medium | seen-cache + rate limit (PHASE 9) | medium |
+| Fake ACK | low | low | ACK via final recipient; MVP is simple | medium |
+| Malicious relay | medium | low | relay sees only metadata, E2E protects | low |
+| Traffic analysis | medium | medium | **open in the MVP** — metadata leak | high |
 
 ### 10.7 Metadata privacy: MVP vs Advanced
 
-- **MVP:** sender/target UUID, TTL, vaqt — **ochiq** (relay ko'radi). Bu
-  routing uchun zarur va transport darajasida (BLE reklama nomi) ham ochiq.
-- **Advanced (PHASE 8+):** reklama nomini doimiy almashish, padding,
-  dummy traffic, onion-style — bular MVP'da kiritilmaydi, lekin arxitektura
-  protokol turi qo'shish orqali buni qo'llab-quvvatlaydi.
+- **MVP:** sender/target UUID, TTL, timestamps — **open** (the relay sees them).
+  This is required for routing and is also open at the transport level (BLE
+  advertisement name).
+- **Advanced (PHASE 8+):** constantly rotating advertisement names, padding,
+  dummy traffic, onion-style — these are not introduced in the MVP, but the
+  architecture supports them by adding protocol types.
 
 ---
 
-## 11. J. Store-and-Forward Arxitekturasi
+## 11. J. Store-and-Forward Architecture
 
-### 11.1 Maqsad
+### 11.1 Purpose
 
-Qabul qiluvchi oflayn bo'lganda, xabar oraliq tugunda saqlanadi va qabul
-qiluvchi yana tarmoqqa qo'shilganda yetkaziladi.
+When the recipient is offline, the message is stored on an intermediate node and
+delivered once the recipient rejoins the network.
 
 ### 11.2 Model
 
 ```
-Message → QUEUED (local MessageStore, TTL boshlanadi)
-  → retry har X soniyada (jitter bilan)
-  → peer online bo'lsa → send → DELIVERED
-  → TTL tugadi (24h) → EXPIRED (foydalanuvchiga bildiriladi)
+Message → QUEUED (local MessageStore, TTL starts)
+  → retry every X seconds (with jitter)
+  → if peer is online → send → DELIVERED
+  → TTL expires (24h) → EXPIRED (the user is notified)
 ```
 
-- **Saqlash hajmi:** maks 5MB yoki 500 xabar (round-robin eviction).
-- **Prioritet:** SOS > TEXT > PING.
-- **Dublikat:** saqlangan xabar ham `(sender, seq)` bilan deduplikatsiya.
-- **Persistence:** `MessageStore` SharedPreferences (MVP); PHASE 9: Room + yaqin
-  shifrlangan DB.
-- **Xabarlar allaqachon E2E shifrlangan** — diskda ochiq matn saqlanmaydi.
+- **Storage size:** max 5MB or 500 messages (round-robin eviction).
+- **Priority:** SOS > TEXT > PING.
+- **Duplicates:** stored messages are also deduplicated by `(sender, seq)`.
+- **Persistence:** `MessageStore` in SharedPreferences (MVP); PHASE 9: Room + a
+  locally encrypted DB.
+- **Messages are already E2E encrypted** — no plaintext is stored on disk.
 
 ### 11.3 Event: peer rejoin
 
-`peerDiscovered` (online) → `StoreAndForward.flush(deviceId)` → saqlangan
-xabarlar yuboriladi.
+`peerDiscovered` (online) → `StoreAndForward.flush(deviceId)` → stored messages
+are sent.
 
 ---
 
-## 12. K. ACK/Retry Arxitekturasi
+## 12. K. ACK/Retry Architecture
 
-### 12.1 Xabar lifecycle
+### 12.1 Message lifecycle
 
 ```
-CREATED → QUEUED → FORWARDED → DELIVERED (ACK keldi)
-                             → EXPIRED (TTL 0, saqlanmay qoldi)
-                             → FAILED (3 retry → muvaffaqiyatsiz)
+CREATED → QUEUED → FORWARDED → DELIVERED (ACK received)
+                             → EXPIRED (TTL 0, was never stored)
+                             → FAILED (3 retries → failed)
 ```
 
-### 12.2 ACK oqimi
+### 12.2 ACK flow
 
 ```
 A → B → C → D (TEXT)
-D decrypt qildi
+D decrypts
 D → C → B → A (DELIVERY_REPORT, delivered=1)
-A: pending map'dan olib tashlash, UI'da ✓✓
+A: removes from pending map, ✓✓ in the UI
 ```
 
-### 12.3 Retry siyosati
+### 12.3 Retry policy
 
-- Timeout: 30 soniya (jitter ±5s).
-- Retry soni: maks 3.
-- Backoff: 30s → 60s → 120s (eksponensial).
-- Retry cheki: 3 ta — **cheksiz retry YO'Q** (battery + bandwidth).
-- After fail → `FAILED` state, UI'da qayta yuborish tugmasi.
+- Timeout: 30 seconds (jitter ±5s).
+- Retry count: max 3.
+- Backoff: 30s → 60s → 120s (exponential).
+- Retry cap: 3 — **no unlimited retry** (battery + bandwidth).
+- After failure → `FAILED` state, resend button in the UI.
 
-### 12.4 Fake-ACK himoyasi (MVP yondashuv)
+### 12.4 Fake-ACK protection (MVP approach)
 
-- DELIVERY_REPORT final qabul qiluvchi tomonidan yaratiladi va original
-  `(sender, seq)` ni olib qaytadi.
-- Relay uni o'zgartirishi mumkin (malicious relay). MVP'da buni to'liq
-  oldini olish yo'q; PHASE 6: DELIVERY_REPORT'ni sender public key bilan
-  imzolash (Ed25519).
+- The DELIVERY_REPORT is created by the final recipient and carries the original
+  `(sender, seq)` back.
+- A relay could modify it (malicious relay). There is no complete prevention in
+  the MVP; PHASE 6: sign the DELIVERY_REPORT with the sender's public key
+  (Ed25519).
 
 ---
 
-## 13. L. Node Xatoligidan Qaytarish
+## 13. L. Node Failure Recovery
 
-### 13.1 Detektsiya
+### 13.1 Detection
 
-- **Heartbeat:** `PEER_PING` har 15s (battery-aware, jitter bilan).
-- Peer 3× intervalidan (45s) javob bermasa → `offline`, route o'chiriladi.
-- BLE RSSI yo'qolsa → `peerLost`.
+- **Heartbeat:** `PEER_PING` every 15s (battery-aware, with jitter).
+- If a peer does not respond for 3× the interval (45s) → `offline`, the route is removed.
+- BLE RSSI lost → `peerLost`.
 - Wi-Fi `UNAVAILABLE` → `peerLost`.
 
-### 13.2 Recovery (flooding'da)
+### 13.2 Recovery (in flooding)
 
-- Route jadvali bo'lmagani uchun: yangi xabar yangi flood bilan avtomatik
-  yangi yo'l topadi. **Bu flooding'ning eng katta afzalligi** — konvergensiya
-  vaqti YO'Q.
-- Send muvaffaqiyatsiz bo'lsa: `FIND_PEER` broadcast → yo'l qidirish →
-  qayta yuborish.
+- With no route table: a new message automatically finds a new path via a new
+  flood. **This is flooding's biggest advantage** — no convergence time.
+- If sending fails: `FIND_PEER` broadcast → path search → resend.
 
-### 13.3 Stale route tozalash
+### 13.3 Stale route cleanup
 
-- `PeerStore` da `lastSeenMs > 60s` → peer UI'da offline ko'rinadi (o'chirilmaydi,
-  tarix uchun).
-- Seen-cache 60s expiry (yangi flood o'tishi uchun).
-- PHASE 6: routing jadvali bo'lsa — `ROUTE_ERROR` va qayta hisoblash.
+- In `PeerStore`, `lastSeenMs > 60s` → the peer is shown as offline in the UI
+  (not deleted — kept for history).
+- Seen-cache 60s expiry (so new floods pass through).
+- PHASE 6: with a routing table — `ROUTE_ERROR` and recalculation.
 
 ---
 
-## 14. M. Flutter ↔ Kotlin Arxitekturasi
+## 14. M. Flutter ↔ Kotlin Architecture
 
-### 14.1 Platform Channel kontrakti (joriy + kengaytma)
+### 14.1 Platform Channel contract (current + extension)
 
 **Method channel: `meshnet/engine`**
 
-| Metod | Parametrlar | Qaytarish | Holat |
+| Method | Parameters | Return | Status |
 |-------|-------------|-----------|-------|
 | `initEngine` | `displayName` | `true` | ✅ |
 | `startNode` | — | `true` | ✅ |
@@ -614,124 +615,128 @@ A: pending map'dan olib tashlash, UI'da ✓✓
 
 **Event channel: `meshnet/events`**
 
-| Event | Payload | Holat |
+| Event | Payload | Status |
 |-------|---------|-------|
-| `peerDiscovered` | `{deviceId, displayName, rssi, transport}` | ⚠️ hali emit qilinmaydi |
-| `peerUpdated` | `{deviceId, rssi, hopCost}` | ⚠️ hali yo'q |
-| `peerLost` | `{deviceId}` | ⚠️ hali emit qilinmaydi |
+| `peerDiscovered` | `{deviceId, displayName, rssi, transport}` | ⚠️ not emitted yet |
+| `peerUpdated` | `{deviceId, rssi, hopCost}` | ⚠️ not yet |
+| `peerLost` | `{deviceId}` | ⚠️ not emitted yet |
 | `messageReceived` | `{fromDeviceId, message, messageId}` | ✅ |
 | `deliveryStatus` | `{messageId, status}` | ✅ |
 | `engineState` | `{state}` | ✅ |
 
-### 14.2 Dart tomonda (joriy + taklif)
+### 14.2 Dart side (current + proposal)
 
 - `lib/core/mesh_service.dart` — MeshService wrapper ✅
 - `lib/core/providers.dart` — peersProvider, incomingMessagesProvider ✅
-- **Taklif:** `MessageRepository` / `ChatController` (Riverpod `Notifier`) —
-  chat history, delivery status, retry UI holatini boshqaradi. Hozir chat
-  history faqat widget state'ida (`_messages` List) — app yopilsa yo'qoladi.
+- **Proposal:** `MessageRepository` / `ChatController` (Riverpod `Notifier`) —
+  manages chat history, delivery status, and retry UI state. Currently, chat
+  history lives only in widget state (`_messages` List) — it is lost when the
+  app closes.
 
-### 14.3 Kontrakt qoidalari
+### 14.3 Contract rules
 
-1. Barcha `Map<String, dynamic>` — primitiv tiplar (String/num/bool) orqali.
-   Qo'shimcha klass seriyalash yo'q (binary frame faqat Kotlin'da).
-2. Event'lar broadcast; Flutter tomonda `StreamProvider` orqali kuzatiladi.
-3. Xato holatlarida `result.error("code", "msg", null)`.
+1. All `Map<String, dynamic>` use primitive types (String/num/bool). No extra
+   class serialization (the binary frame exists only in Kotlin).
+2. Events are broadcast; on the Flutter side they are observed through
+   `StreamProvider`.
+3. On errors, `result.error("code", "msg", null)`.
 
 ---
 
-## 15. N. Android BLE/Wi-Fi Strategiyasi
+## 15. N. Android BLE/Wi-Fi Strategy
 
 ### 15.1 BLE
 
-| Komponent | Strategiya | Battery izohi |
+| Component | Strategy | Battery note |
 |-----------|------------|----------------|
-| Advertise | `LOW_LATENCY` faol / `LOW_POWER` fon | adaptive interval (100ms→1s) |
-| Scan | `LOW_POWER` fon, `LOW_LATENCY` on-demand | scan batch (reportDelay) |
-| Connection | Lazy, LRU pool, maks ~7 | 1 ulanish ≈ 5-10mA |
-| MTU | `requestMtu(512)` so'rov; chunk 244 | — |
-| Packet batching | kichik xabarlar bitta write | — |
-| Sleep/wake | Wake lock minimal, `acquire` send paytida | — |
+| Advertise | `LOW_LATENCY` active / `LOW_POWER` background | adaptive interval (100ms→1s) |
+| Scan | `LOW_POWER` background, `LOW_LATENCY` on-demand | scan batch (reportDelay) |
+| Connection | Lazy, LRU pool, max ~7 | 1 connection ≈ 5-10mA |
+| MTU | `requestMtu(512)` request; chunk 244 | — |
+| Packet batching | small messages in a single write | — |
+| Sleep/wake | minimal wake lock, `acquire` at send time | — |
 
 ### 15.2 Wi-Fi Direct
 
-- Discovery doim emas — interval bilan.
-- Guruh yaratish/ulanish faqat xabar uchun kerak bo'lganda.
-- Socket TCP keep-alive 30s.
+- Discovery is not continuous — on an interval.
+- Group creation/connection only when needed for a message.
+- TCP socket keep-alive 30s.
 
-### 15.3 Android background cheklovlari (muhim!)
+### 15.3 Android background restrictions (important!)
 
-- Android 8+: background location/scan cheklangan. **Foreground service**
-  talab — `FOREGROUND_SERVICE_CONNECTED_DEVICE` ✅ manifestda bor.
+- Android 8+: background location/scan restricted. **Foreground service**
+  required — `FOREGROUND_SERVICE_CONNECTED_DEVICE` ✅ in the manifest.
 - Android 12+: `BLUETOOTH_SCAN`, `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT`
-  runtime ruxsatlari ✅ (permission_handler + `neverForLocation`).
+  runtime permissions ✅ (permission_handler + `neverForLocation`).
 - Android 13+: `POST_NOTIFICATIONS` runtime ✅.
-- Doze / App Standby: BLE scan/advertise to'xtatilishi mumkin. Foreground
-  service + `batteryOptimization` exception (PHASE 9 da).
-- **Background BLE GATT** — Android 10+ da cheklangan: `startScan` background'da
-  ishlamaydi. Shuning uchun mesh faqat foreground service'da va app
-  qisman ko'rinadigan holda ishlaydi.
+- Doze / App Standby: BLE scan/advertise may be stopped. Foreground service +
+  `batteryOptimization` exception (in PHASE 9).
+- **Background BLE GATT** — restricted on Android 10+: `startScan` does not work
+  in the background. Therefore the mesh runs only inside the foreground service
+  and while the app is partially visible.
 
-### 15.4 Haqiqiy qurilmalarda "bg/BG reliability" pozitsiyasi
+### 15.4 "bg/BG reliability" position on real devices
 
-| Funktsiya | Foreground | Background | Izoh |
+| Function | Foreground | Background | Notes |
 |-----------|-----------|-----------|------|
-| BLE advertise | ✅ ishonchli | ⚠️ OS to'xtatishi mumkin | service+optimization |
-| BLE scan | ✅ | ⚠️ Android 10+ background'da taqiq | service orqali |
-| Wi-Fi Direct | ✅ | ⚠️ doze'da muammo | — |
-| GATT connection | ✅ | ⚠️ cheklangan | — |
+| BLE advertise | ✅ reliable | ⚠️ OS may stop it | service+optimization |
+| BLE scan | ✅ | ⚠️ banned in background on Android 10+ | via service |
+| Wi-Fi Direct | ✅ | ⚠️ problems in doze | — |
+| GATT connection | ✅ | ⚠️ restricted | — |
 
-**Pozitsiya:** MVP "app ochiq + foreground service" rejimida ishlaydi. To'liq
-background mesh — Android platforma cheklovi; uni yashirmaymiz. PHASE 9 da
-battery optimization exception so'raladi, lekin to'liq fon ishlashi platforma
-siyosatiga bog'liq.
+**Position:** the MVP operates in "app open + foreground service" mode. Full
+background mesh is an Android platform constraint; we do not hide it. In PHASE 9
+a battery optimization exception will be requested, but full background
+operation depends on platform policy.
 
 ---
 
-## 16. O. Embedded Apparat Yo'l Xaritasi
+## 16. O. Embedded Hardware Roadmap
 
-### 16.1 Kandidatlar taqqoslanishi
+### 16.1 Candidate comparison
 
-| Mezon | ESP32-C3 | nRF52840 | RP2040 + radio | ESP32-S3 |
+| Criterion | ESP32-C3 | nRF52840 | RP2040 + radio | ESP32-S3 |
 |-------|----------|----------|----------------|----------|
-| Narx | $3-4 | $8-10 | $1 + $3 (radio) | $4-6 |
+| Price | $3-4 | $8-10 | $1 + $3 (radio) | $4-6 |
 | BLE 5 | ✅ (long range?) | ✅ (2Mbit, Coded) | ❌ (external) | ❌ (Wi-Fi+BLE?) |
 | Wi-Fi | ❌ | ❌ | ❌ | ✅ |
 | RAM | 400KB | 256KB | 264KB | 512KB |
 | Flash | 4MB | 1MB (ext) | 2MB | 8MB |
-| Quvvat (sleep) | ~5µA | ~1µA | ~2µA | ~7µA |
-| Rivojlanish osonligi | ✅ Arduino/ESP-IDF | o'rtacha (nRF SDK) | ✅ Arduino | ✅ |
-| Mavjudligi | ✅ | o'rtacha | ✅ | ✅ |
+| Power (sleep) | ~5µA | ~1µA | ~2µA | ~7µA |
+| Development ease | ✅ Arduino/ESP-IDF | average (nRF SDK) | ✅ Arduino | ✅ |
+| Availability | ✅ | average | ✅ | ✅ |
 
-### 16.2 Qaror
+### 16.2 Decision
 
-- **Prototip relay node:** **ESP32-C3** — arzon, BLE 5, Arduino/ESP-IDF oson,
-  internetdan oson olinadi. PHASE 7 uchun.
-- **Field (battery) node:** **nRF52840** — eng yaxshi BLE 5 (Coded PHY — 1km
-  gacha masofa), eng past quvvat. LoRa backbone qo'shilganda SX1262 bilan.
-- **RP2040** — alohida radio talab qiladi, mesh'ga mos emas (biz radio
-  integratsiya qilish uchun qo'shimcha ish). Chiqarib tashlandi.
+- **Prototype relay node:** **ESP32-C3** — cheap, BLE 5, easy Arduino/ESP-IDF,
+  easily obtained online. For PHASE 7.
+- **Field (battery) node:** **nRF52840** — the best BLE 5 (Coded PHY — up to
+  1km range), the lowest power. With an SX1262 when a LoRa backbone is added.
+- **RP2040** — requires a separate radio, not a good fit for the mesh (extra work
+  to integrate the radio). Discarded.
 
-### 16.3 BLE ↔ node ↔ BLE arxitekturasi
+### 16.3 BLE ↔ node ↔ BLE architecture
 
 ```
 Phone A ──BLE──▶ MeshNode (ESP32-C3) ──LoRa/BLE──▶ MeshNode ──BLE──▶ Phone B
 ```
 
-- Node GATT server sifatida: phone'lar ulanishi mumkin.
-- Node → node: BLE (Coded PHY long range) yoki LoRa (SX1262) — PHASE 8.
-- Node UI'ga ega emas — LED status + power management.
+- The node as GATT server: phones can connect.
+- Node → node: BLE (Coded PHY long range) or LoRa (SX1262) — PHASE 8.
+- The node has no UI — LED status + power management.
 
-### 16.5 PHASE 7 implementatsiyasi (2026)
+### 16.5 PHASE 7 implementation (2026)
 
-- **Stack**: Arduino-ESP32 **3.3.11**, `esp32:esp32:esp32c3`. ESP32-C3 build'i
-  **NimBLE** (`CONFIG_BT_NIMBLE_ENABLED`) — MTU avtomatik 256, MAX_CONNECTIONS=3.
-- **Manba**: `firmware/mesh_node/` — `mesh_frame.h/c` (wire parse/encode,
-  portable C, xost test), `relay.h/c` (dedup+TTL, 64 entry, 60s TTL),
+- **Stack**: Arduino-ESP32 **3.3.11**, `esp32:esp32:esp32c3`. The ESP32-C3 build
+  uses **NimBLE** (`CONFIG_BT_NIMBLE_ENABLED`) — MTU auto 256,
+  MAX_CONNECTIONS=3.
+- **Source**: `firmware/mesh_node/` — `mesh_frame.h/c` (wire parse/encode,
+  portable C, host tests), `relay.h/c` (dedup+TTL, 64 entries, 60s TTL),
   `mesh_node.ino` (GATT server RX/WRITE + adv MFG + GATT client scan/connect).
-- **Host testlar**: `firmware/mesh_node/test/` — `make run` → 7/7 PASS.
+- **Host tests**: `firmware/mesh_node/test/` — `make run` → 7/7 PASS.
 - **Build**: `arduino-cli compile --fqbn esp32:esp32:esp32c3 firmware/mesh_node`.
-- **Qoldiq**: real qurilmada flash + telefon bilan ulanish testi (apparat yo'q).
+- **Remaining**: flash on a real device + a connection test with a phone (no
+  hardware available).
 
 ### 16.4 Battery (embedded)
 
@@ -741,303 +746,301 @@ Phone A ──BLE──▶ MeshNode (ESP32-C3) ──LoRa/BLE──▶ MeshNode 
 
 ---
 
-## 17. P. Repozitoriy Tuzilishi
+## 17. P. Repository Structure
 
-### 17.1 Taklif (PHASE 5+ da qo'llaniladi)
+### 17.1 Proposal (applied in PHASE 5+)
 
 ```
 meshnet/
 ├── mobile/
-│   └── flutter_app/          # Flutter UI (hoziroq: meshnet_app/lib)
+│   └── flutter_app/          # Flutter UI (currently: meshnet_app/lib)
 ├── android/
-│   └── mesh_network/         # Kotlin mesh engine (hoziroq: meshnet_app/android)
+│   └── mesh_network/         # Kotlin mesh engine (currently: meshnet_app/android)
 ├── protocol/
-│   ├── packet/               # frame spetsifikatsiyasi + codec testlari
+│   ├── packet/               # frame specification + codec tests
 │   ├── routing/
 │   ├── crypto/
 │   └── serialization/
 ├── firmware/
 │   └── mesh_node/            # ESP32-C3 (PHASE 7)
 ├── docs/
-│   ├── architecture/         # bu hujjat
+│   ├── architecture/         # this document
 │   ├── protocol/
 │   ├── security/
 │   └── testing/
-├── tools/                    # test/benchmark skriptlar
+├── tools/                    # test/benchmark scripts
 └── README.md
 ```
 
-### 17.2 Hozirgi holat va qaror
+### 17.2 Current state and decision
 
-Joriy repo: `meshnet_app/` — Flutter + Android birga, `docs/` bor.
+Current repo: `meshnet_app/` — Flutter and Android together, with a `docs/`.
 
-**Qaror:** MVP (PHASE 1-4) davomida joriy tuzilma **saqlanadi** — qayta
-tashkil qilish vaqti va git tarixni buzadi, foyda past. PHASE 5 boshlanganda
-(store-and-forward va test infrastruktura kerak bo'lganda) monorepo'ga o'tamiz.
-Bu qaror "refactor churn" riskini kamaytiradi.
+**Decision:** during the MVP (PHASE 1-4) the current structure is **kept** —
+restructuring wastes time and breaks git history for low benefit. When PHASE 5
+begins (when store-and-forward and test infrastructure are needed) we move to a
+monorepo. This decision reduces "refactor churn" risk.
 
-**Nima uchun hozir emas:** MVP 5 kishi, 5 fayl; o'tishning narxi (barcha
-import path, CI, git) MVP'ga qiymat qo'shmaydi.
+**Why not now:** the MVP is 5 people and 5 files; the cost of the migration (all
+import paths, CI, git) adds no value to the MVP.
 
 ---
 
-## 18. Q. Jamoa Rollari
+## 18. Q. Team Roles
 
-| Rol | Bo'lim | Vazifa |
+| Role | Department | Responsibility |
 |-----|--------|--------|
-| Bosh Direktor (MD) | — | Qarorlar, prioritet, xavf nazorati |
-| Flutter dasturchi | Frontend | UI ekranlari, Riverpod state, chat UX |
-| Kotlin mesh muhandisi | Backend | Identity, crypto, routing, transport, store-forward |
-| DevOps | DevOps | Build (Gradle/CI), qurilma deploy, benchmark avtomatlash |
-| QA | QA | Test rejasi, unit/integration test, real qurilma testlari |
-| Xavfsizlik | Security | Threat model, kripto audit, pen-test |
-| Dizayner | Dizayn | Emergency UX, dark theme, holat belgilari |
+| Managing Director (MD) | — | Decisions, priorities, risk oversight |
+| Flutter developer | Frontend | UI screens, Riverpod state, chat UX |
+| Kotlin mesh engineer | Backend | Identity, crypto, routing, transport, store-forward |
+| DevOps | DevOps | Build (Gradle/CI), device deploy, benchmark automation |
+| QA | QA | Test plan, unit/integration tests, real-device tests |
+| Security | Security | Threat model, crypto audit, pen-test |
+| Designer | Design | Emergency UX, dark theme, status indicators |
 
-**Kichik jamoa (talabalar):** 1 kishi 1-2 rolni qamraydi. Eng muhim ikkita rol:
-Kotlin mesh muhandisi va Flutter dasturchi. QA va Security vaqtincha (PHASE 2+).
+**Small team (students):** 1 person covers 1-2 roles. The two most important
+roles are the Kotlin mesh engineer and the Flutter developer. QA and Security
+are temporary (PHASE 2+).
 
 ---
 
-## 19. R. Rivojlanish Yo'l Xaritasi
+## 19. R. Development Roadmap
 
-| Faza | Mazmun | Vaqt (hisob) | Chiqish mezonlari |
+| Phase | Content | Time (estimate) | Exit criteria |
 |------|--------|--------------|-------------------|
-| 0 | Arxitektura (bu hujjat) | 1 hafta | Tasdiqlangan arxitektura |
-| 1 | **Single-hop P2P** (A↔B) | 1-2 hafta | BLE+Wi-Fi orqali matn chat, ACK, discovery |
-| 2 | **Multi-hop** (A→B→C→D) | 2 hafta | 2-hop relay, TTL, dublikat |
-| 3 | **Secure messaging** | 1-2 hafta | Juftlash, E2E, delivery status |
-| 4 | **Dynamic routing** | 2 hafta | Route recovery, FIND_PEER, rank-based |
-| 5 | **Store & forward** ✅ | 2 hafta | Offline qabul, flush, expiry |
-| 6 | **Fault tolerance** ✅ | 1-2 hafta | Heartbeat, failover, key rotation* |
+| 0 | Architecture (this document) | 1 week | Approved architecture |
+| 1 | **Single-hop P2P** (A↔B) | 1-2 weeks | Text chat, ACK, discovery over BLE+Wi-Fi |
+| 2 | **Multi-hop** (A→B→C→D) | 2 weeks | 2-hop relay, TTL, duplicates |
+| 3 | **Secure messaging** | 1-2 weeks | Pairing, E2E, delivery status |
+| 4 | **Dynamic routing** | 2 weeks | Route recovery, FIND_PEER, rank-based |
+| 5 | **Store & forward** ✅ | 2 weeks | Offline receipt, flush, expiry |
+| 6 | **Fault tolerance** ✅ | 1-2 weeks | Heartbeat, failover, key rotation* |
 
-> ✅ = kod yozildi (42 JVM test, `flutter analyze` toza, debug APK quriladi).
-> *PHASE 6: heartbeat + failover bajarildi; **key rotation PHASE 9 ga ko'chirildi**
-> (foydalanuvchi qarori).
-> **PHASE 7 (ESP32-C3 node):** `firmware/mesh_node/` yozildi — `mesh_frame.c/h`
-> + `relay.c/h` (7/7 host test PASS) va `mesh_node.ino` (BLE server+client,
-> NimBLE). `arduino-cli compile --fqbn esp32:esp32:esp32c3` o'tadi. Haqiqiy
-> qurilmada test qolgan (apparat yo'q).
-| 7 | **Embedded nodes** ⏳ | 4-6 hafta | ESP32-C3 relay node |
-| 8 | **Long-range** | 3-4 hafta | LoRa backbone, nRF52840 |
-| 9 | **Hardening** | davomiy | Keystore, pen-test, battery opt., CI |
+> ✅ = code written (42 JVM tests, `flutter analyze` clean, debug APK builds).
+> *PHASE 6: heartbeat + failover completed; **key rotation moved to PHASE 9**
+> (user decision).
+> **PHASE 7 (ESP32-C3 node):** `firmware/mesh_node/` written — `mesh_frame.c/h`
+> + `relay.c/h` (7/7 host tests PASS) and `mesh_node.ino` (BLE server+client,
+> NimBLE). `arduino-cli compile --fqbn esp32:esp32:esp32c3` passes. A real-device
+> test remains (no hardware available).
+| 7 | **Embedded nodes** ⏳ | 4-6 weeks | ESP32-C3 relay node |
+| 8 | **Long-range** | 3-4 weeks | LoRa backbone, nRF52840 |
+| 9 | **Hardening** | ongoing | Keystore, pen-test, battery opt., CI |
 
-**Qoida:** har faza "real qurilmalarda test" dan keyingina yopiladi.
+**Rule:** each phase only closes after "tests on real devices".
 
 ---
 
-## 20. S. Risk Tahlili
+## 20. S. Risk Analysis
 
-| Risk | Impact | Ehtimol | Yumshatish | Qoldiq |
+| Risk | Impact | Likelihood | Mitigation | Residual |
 |------|--------|---------|------------|--------|
-| BLE reliability (ulanish limitlari, drop) | Yuqori | Yuqori | Lazy connection, LRU pool, Wi-Fi Direct asosiy | O'rta |
-| 5 ta real qurilma logistika | Yuqori | Yuqori | Erta xarid, emulator + real aralash | O'rta |
-| Wi-Fi Direct guruh cheklovi (5-8) | O'rta | O'rta | BLE'ga tayanuvchi mesh | Past |
-| ChaCha20 API 26-27 muammosi | O'rta | O'rta | BouncyCastle provider | Past |
-| Private key SharedPreferences'da | Yuqori | Past | PHASE 9: Keystore | Past (MVP) |
-| Routing portlashi (100+ tugun) | O'rta | Past | Rank-based routing PHASE 4 | O'rta |
-| Battery drain | O'rta | O'rta | Adaptive interval, lazy | O'rta |
-| Noaniq/soxta qurilmalar (spoofing) | O'rta | O'rta | QR identity tekshiruvi | O'rta |
+| BLE reliability (connection limits, drops) | High | High | Lazy connection, LRU pool, Wi-Fi Direct primary | Medium |
+| Logistics of 5 real devices | High | High | Early purchase, emulator + real mixed | Medium |
+| Wi-Fi Direct group limit (5-8) | Medium | Medium | A mesh that falls back to BLE | Low |
+| ChaCha20 API 26-27 issue | Medium | Medium | BouncyCastle provider | Low |
+| Private key in SharedPreferences | High | Low | PHASE 9: Keystore | Low (MVP) |
+| Routing explosion (100+ nodes) | Medium | Low | Rank-based routing PHASE 4 | Medium |
+| Battery drain | Medium | Medium | Adaptive interval, lazy | Medium |
+| Spoofed/fake devices | Medium | Medium | QR identity verification | Medium |
 
-### Threat model (to'liq)
+### Threat model (full)
 
-| Tahdid | Ta'rif | Impact | Ehtimol | Yumshatish | Residual |
+| Threat | Description | Impact | Likelihood | Mitigation | Residual |
 |--------|--------|--------|---------|------------|----------|
-| Eavesdropping | Xabarni tutib o'qish | Yuqori | O'rta | E2E ChaCha20-Poly1305 | Past |
-| MITM | A va B o'rtasiga kirish | Yuqori | Past | QR out-of-band tekshiruv | Past |
-| Replay | Eski xabarni takrorlash | O'rta | Past | nonce + seen-cache | Past |
-| Message injection | Soxta xabar yuborish | O'rta | O'rta | authorized peer talab | O'rta |
-| Impersonation | Boshqa ID'ni egallash | Yuqori | Past | identity=kalit, QR | Past |
-| Sybil | Ko'p soxta tugun | O'rta | O'rta | Faqat QR paired'larga ishonch | O'rta |
-| Flooding (DoS) | Xabar portlashi | O'rta | O'rta | seen-cache, rate limit (P9) | O'rta |
-| Route poisoning | Yo'l jadvalini buzish | O'rta | Past | Flooding'da jadval yo'q | Past |
-| Fake ACK | Yetkazilgan degan yolg'on | Past | Past | ACK final qabul qiluvchi; P6 imzo | O'rta |
-| Malicious relay | Relay xabarni tashlashi | O'rta | Past | E2E himoya; tushirilgan xabar — delivery report yo'q | O'rta |
-| Compromised device | Kalit o'g'irlanishi | Yuqori | Past | Keystore, lokal saqlash | O'rta |
-| Spam | Keraksiz xabarlar | Past | O'rta | authorized-only | Past |
-| Traffic analysis | Kim qachon kimga yozadi | O'rta | O'rta | **MVP'da ochiq**; P8 padding | Yuqori |
+| Eavesdropping | Intercepting and reading a message | High | Medium | E2E ChaCha20-Poly1305 | Low |
+| MITM | Insertion between A and B | High | Low | QR out-of-band verification | Low |
+| Replay | Replaying an old message | Medium | Low | nonce + seen-cache | Low |
+| Message injection | Sending a fake message | Medium | Medium | authorized peer required | Medium |
+| Impersonation | Taking over another ID | High | Low | identity=key, QR | Low |
+| Sybil | Many fake nodes | Medium | Medium | Only trust QR-paired nodes | Medium |
+| Flooding (DoS) | Message explosion | Medium | Medium | seen-cache, rate limit (P9) | Medium |
+| Route poisoning | Corrupting the route table | Medium | Low | No table in flooding | Low |
+| Fake ACK | False "delivered" claims | Low | Low | ACK from final recipient; P6 signatures | Medium |
+| Malicious relay | Relay drops a message | Medium | Low | E2E protection; a dropped message means no delivery report | Medium |
+| Compromised device | Key theft | High | Low | Keystore, local storage | Medium |
+| Spam | Unwanted messages | Low | Medium | authorized-only | Low |
+| Traffic analysis | Who writes to whom, when | Medium | Medium | **open in the MVP**; P8 padding | High |
 
 ---
 
-## 21. T. Test Strategiyasi
+## 21. T. Testing Strategy
 
-### 21.1 Darajalar
+### 21.1 Levels
 
-| Daraja | Joy | Qamrov | Vosita |
+| Level | Location | Coverage | Tool |
 |--------|-----|--------|--------|
 | Unit | JVM (Kotlin) | MeshFrame roundtrip, MeshCrypto, RoutingEngine, dedup, TTL | JUnit 4/5 |
-| Unit | Dart | MeshService kontrakt, providers | flutter_test |
-| Integration | JVM | RoutingEngine + fake transport'lar (loopback) | JUnit |
-| Integration | Device | 2 transport, 2-5 qurilma | manual + script |
-| E2E | 5 real telefon | testlar 1-10 | manual QA |
+| Unit | Dart | MeshService contract, providers | flutter_test |
+| Integration | JVM | RoutingEngine + fake transports (loopback) | JUnit |
+| Integration | Device | 2 transports, 2-5 devices | manual + script |
+| E2E | 5 real phones | tests 1-10 | manual QA |
 
-### 21.2 Minimal fizik testlar (spec'dan)
+### 21.2 Minimal physical tests (from the spec)
 
-| # | Test | Kutilgan |
+| # | Test | Expected |
 |---|------|----------|
 | 1 | A↔B | discovery, chat, ACK |
-| 2 | A→B→C | C xabar oldi, B ko'rmadi (E2E) |
-| 3 | A→B→C→D | 3-hop ishlaydi (MVP: 2-hop, D bevosita) |
-| 4 | B o'chirish | A→E→C→D yangi yo'l |
+| 2 | A→B→C | C receives the message, B does not see it (E2E) |
+| 3 | A→B→C→D | 3-hop works (MVP: 2-hop, D indirect) |
+| 4 | Remove B | A→E→C→D finds a new path |
 | 5 | D offline → online | store-and-forward |
-| 6 | Dublikat yuborish | 1 marta qabul |
-| 7 | Buzuq paket | xavfsiz drop, crash yo'q |
-| 8 | Soxta node | authorized bo'lmasa rad etiladi |
-| 9 | Battery stress | iste'mol o'lchov |
-| 10 | Ko'p node | skalabillik o'lchov |
+| 6 | Send a duplicate | received once |
+| 7 | Corrupted packet | safe drop, no crash |
+| 8 | Fake node | rejected if not authorized |
+| 9 | Battery stress | consumption measurement |
+| 10 | Many nodes | scalability measurement |
 
 ### 21.3 Benchmarks
 
 Discovery latency · connection latency · message latency · delivery success ·
 packet loss · battery · CPU/RAM · throughput · max nodes · max hops · recovery
-time. `tools/bench/` da takrorlanadigan skriptlar (PHASE 1 dan boshlab log
-qo'shamiz).
+time. Reproducible scripts in `tools/bench/` (we start logging from PHASE 1).
 
 ---
 
-## 22. U. Skalabillik Tahlili
+## 22. U. Scalability Analysis
 
-| Bosqich | Tugunlar | Imkoniyat | Cheklov |
+| Stage | Nodes | Capability | Constraint |
 |---------|----------|-----------|---------|
 | 1 | 2-5 | MVP | — |
-| 2 | 10-20 | Flooding yaroqli | flooding overhead o'sadi |
-| 3 | 30-100 | Rank-based routing (PHASE 4) | BLE ulanish limitlari |
-| 4 | 100-1000 | LoRa backbone + hierarchy | kompleks, bandwitdh |
+| 2 | 10-20 | Flooding is viable | flooding overhead grows |
+| 3 | 30-100 | Rank-based routing (PHASE 4) | BLE connection limits |
+| 4 | 100-1000 | LoRa backbone + hierarchy | complex, bandwidth |
 
-**Aniq cheklovlar (yashirilmaydi):**
-- **BLE:** bir qurilma ~7-9 GATT client — "mesh" relay orqali yumshatiladi, lekin
-  har qurilma darhol 100 tugunni ko'rmaydi.
-- **Wi-Fi Direct:** guruh 5-8 qurilma (Android standarti).
-- **Flooding:** 20+ tugunda dublikat portlashi — shuning uchun PHASE 4'da
-  rank-based (BATMAN-ish) routing.
+**Explicit constraints (not hidden):**
+- **BLE:** one device ~7-9 GATT clients — mitigated by "mesh" relay, but each
+  device will not instantly see 100 nodes.
+- **Wi-Fi Direct:** group of 5-8 devices (Android standard).
+- **Flooding:** duplicate explosion beyond 20 nodes — hence rank-based
+  (BATMAN-like) routing in PHASE 4.
 - **Bandwidth:** BLE ~0.2-2Mbps, Wi-Fi Direct ~20-50Mbps, LoRa ~0.3-10kbps.
-  LoRa faqat TEXT/SOS/metadata uchun.
+  LoRa is for TEXT/SOS/metadata only.
 
 ---
 
-## 23. V. Texnologiya Tanlash Taqqoslanishi
+## 23. V. Technology Comparison
 
 ### 23.1 Transport
 
 | | BLE | Wi-Fi Direct | LoRa |
 |--|-----|--------------|------|
-| Masofa | 10-50m | 50-100m | 1-15km (LOS) |
+| Range | 10-50m | 50-100m | 1-15km (LOS) |
 | Bandwidth | 0.2-2Mbps | 20-50Mbps | 0.3-10kbps |
-| Battery | past | o'rta | juda past |
-| Android qo'llab-quvvatlash | ✅ | ✅ (barchasi emas) | ❌ (serial orqali) |
-| Guruh hajmi | ~7 conn | 5-8 | cheksiz |
-| **Rol** | presence + fallback | asosiy xabar yo'li | long-range backbone (P8) |
+| Battery | low | medium | very low |
+| Android support | ✅ | ✅ (not on all devices) | ❌ (via serial) |
+| Group size | ~7 conn | 5-8 | unlimited |
+| **Role** | presence + fallback | primary message path | long-range backbone (P8) |
 
-### 23.2 Serializatsiya — §5.1 da. **Qaror: binary.**
+### 23.2 Serialization — see §5.1. **Decision: binary.**
 
-### 23.3 Kripto — §10.1 da. **Qaror: X25519 + ChaCha20-Poly1305 (+Ed25519 P4).**
+### 23.3 Crypto — see §10.1. **Decision: X25519 + ChaCha20-Poly1305 (+Ed25519 P4).**
 
-### 23.4 Routing — §9 da. **Qaror: MVP flooding → PHASE 4 rank-based.**
+### 23.4 Routing — see §9. **Decision: MVP flooding → PHASE 4 rank-based.**
 
 ### 23.5 Storage (Android)
 
 | | SharedPreferences | Room/SQLite | DataStore |
 |--|-------------------|-------------|-----------|
-| Oddiylik | ✅ | o'rta | ✅ |
-| Katta ma'lumot | ❌ | ✅ | o'rta |
+| Simplicity | ✅ | medium | ✅ |
+| Large data | ❌ | ✅ | medium |
 | Type-safety | ❌ | ✅ | ✅ |
-| **Qaror** | **MVP** (hozir bor) | PHASE 5 (message history) | — |
+| **Decision** | **MVP** (currently used) | PHASE 5 (message history) | — |
 
 ### 23.6 State management (Flutter)
 
 | | Riverpod | Bloc | setState |
 |--|----------|------|----------|
 | Testability | ✅ | ✅ | ❌ |
-| Murakkablik | o'rta | yuqori | past |
-| Ushbu loyiha | **✅ tanlangan** (allaqachon) | — | kichik qismlar |
+| Complexity | medium | high | low |
+| This project | **✅ selected** (already) | — | small parts |
 
 ### 23.7 Async (Kotlin)
 
 | | Coroutines | RxJava | Threads |
 |--|------------|--------|---------|
-| Oddiylik | ✅ | o'rta | past |
-| Cancelation | ✅ | ✅ | ❌ |
-| **Qaror** | **✅ Coroutines** (dependency'da bor) | — | faqat soket I/O da |
+| Simplicity | ✅ | medium | low |
+| Cancellation | ✅ | ✅ | ❌ |
+| **Decision** | **✅ Coroutines** (already a dependency) | — | only socket I/O |
 
 ---
 
-## 24. Platforma Cheklovlari
+## 24. Platform Constraints
 
-Hozirgacha aniqlangan Android cheklovlari (PHASE 1'da eksperimental tekshiriladi):
+Android constraints identified so far (to be experimentally verified in PHASE 1):
 
-1. **BLE GATT concurrent ulanish limiti (~7-9)** → qancha tugun "to'g'ridan
-   to'g'ri" ulanishi mumkin. **Yumshatish:** lazy + LRU pool + relay.
-2. **Android 10+ background BLE scan taqiq** → mesh faqat foreground service'da
-   to'liq ishlaydi. **To'liq fon mesh'da platforma siyosati cheklaydi.**
-3. **Reclama data limiti (31B legacy / 165B extended)** → device name +
-   service UUID sig'ishi kerak. Barcha ma'lumot reklamada yuborilmaydi.
-4. **ChaCha20-Poly1305 JCE API 28+** → BouncyCastle provider orqali barcha
-   API'da.
-5. **Wi-Fi Direct hamma qurilmada yo'q** (samarali qo'llab-quvvatlash qurilmaga
-   bog'liq) → BLE mustaqil ishlashi shart.
-6. **Foreground service'da battery optimization** → foydalanuvchi ruxsati,
-   PHASE 9.
+1. **BLE GATT concurrent connection limit (~7-9)** → how many nodes can connect
+   "directly". **Mitigation:** lazy + LRU pool + relay.
+2. **Background BLE scan ban on Android 10+** → the mesh only works fully inside
+   a foreground service. **Full background mesh is restricted by platform policy.**
+3. **Advertisement data limit (31B legacy / 165B extended)** → the device name +
+   service UUID must fit. Not all data is sent in the advertisement.
+4. **ChaCha20-Poly1305 JCE on API 28+** → via the BouncyCastle provider on all
+   APIs.
+5. **Wi-Fi Direct is not on every device** (effective support is
+   device-dependent) → BLE must work independently.
+6. **Battery optimization on foreground services** → user consent, PHASE 9.
 
 ---
 
-## 25. Mavjud Kod Bilan Solishtirish va Bo'shliqlar
+## 25. Comparison with Existing Code and Gaps
 
-Qurilgan kod yaxshi poydevor, lekin PHASE 1'ni boshlashdan oldin tuzatilishi
-kerak bo'lgan nuqtalar:
+The built code is a good foundation, but points to fix before starting PHASE 1:
 
-### Kritik (build bug / ishlamaydi)
+### Critical (build bug / does not work)
 
-| # | Muammo | Joy | Yechim |
+| # | Problem | Location | Solution |
 |---|--------|-----|--------|
-| 1 | `gatt.connectedCharacteristic` — `BluetoothGatt` da bunday xususiyat yo'q → **compile error** | `BleTransport.kt:189` | `serverTxChar` ni ishlatish (BleTransport ichida e'lon qilingan) yoki GATT client characteristic saqlash |
-| 2 | `peers` map hech qachon to'ldirilmaydi → `sendFrame` har doim `false` | `BleTransport.kt` | GATT client ulanish logikasi yozish (discoverServices → connect) |
-| 3 | Discovery → PeerStore upsert yo'q → UI'da peer ko'rinmaydi | `TransportManager.kt:35-45` | `onPeerDiscovered` → `peerStore.upsert()` + event emit |
+| 1 | `gatt.connectedCharacteristic` — no such property on `BluetoothGatt` → **compile error** | `BleTransport.kt:189` | use `serverTxChar` (declared inside BleTransport) or store the GATT client characteristic |
+| 2 | the `peers` map is never populated → `sendFrame` always returns `false` | `BleTransport.kt` | write GATT client connection logic (discoverServices → connect) |
+| 3 | Discovery → no PeerStore upsert → peer not visible in the UI | `TransportManager.kt:35-45` | `onPeerDiscovered` → `peerStore.upsert()` + emit event |
 
-### Muhim (to'g'ri ishlaydi, lekin zaif)
+### Important (works but is weak)
 
-| # | Muammo | Joy | Yechim |
+| # | Problem | Location | Solution |
 |---|--------|-----|--------|
-| 4 | `seenMessages` cheksiz o'sadi (expiry yo'q) — memory leak | `RoutingEngine.kt:40` | LRU + 60s expiry |
-| 5 | `ttl` relay'da kamaymaydi (faqat hopLimit) | `RoutingEngine.kt:121-142` | `ttl = frame.ttl - 1`; `ttl<=0` → drop |
-| 6 | Chat history faqat widget state'ida | `chat_view.dart:24` | `MessageRepository` (Riverpod Notifier) + saqlash |
-| 7 | Private key SharedPreferences'da | `IdentityStore.kt:43` | PHASE 9: Keystore (MVP hujjatlashtirilgan) |
-| 8 | ChaCha20 JCE API 26-27'da yo'q | `MeshCrypto.kt:68` | BouncyCastle provider |
-| 9 | `MainActivity` ichida `onDestroy` → `meshEngine.stop()` — service alohida, ikkalasi ham bir engine'ni ishlatmaydi (service hozir bo'sh) | `MeshService.kt` | Engine lifecycle'ni bitta joyga birlashtirish (service engine'ni egalik qilishi kerak) |
+| 4 | `seenMessages` grows without bound (no expiry) — memory leak | `RoutingEngine.kt:40` | LRU + 60s expiry |
+| 5 | `ttl` is not decremented on relay (only hopLimit) | `RoutingEngine.kt:121-142` | `ttl = frame.ttl - 1`; `ttl<=0` → drop |
+| 6 | Chat history only in widget state | `chat_view.dart:24` | `MessageRepository` (Riverpod Notifier) + persistence |
+| 7 | Private key in SharedPreferences | `IdentityStore.kt:43` | PHASE 9: Keystore (documented for MVP) |
+| 8 | ChaCha20 JCE missing on API 26-27 | `MeshCrypto.kt:68` | BouncyCastle provider |
+| 9 | `onDestroy` inside `MainActivity` → `meshEngine.stop()` — the service is separate and both do not use the same engine (the service is currently empty) | `MeshService.kt` | consolidate the engine lifecycle in one place (the service should own the engine) |
 
-### Strukturaviy
+### Structural
 
-- `handleMethodCall` da transport tanlov kodi (`transportKey`, `transportName`)
-  chalkash — `TransportManager` ichiga ko'chiriladi.
-- Testlar yo'q (Kotlin JVM + Dart) — PHASE 1'da birinchi testlar.
+- The transport-selection code in `handleMethodCall` (`transportKey`,
+  `transportName`) is confusing — it should move inside `TransportManager`.
+- No tests (Kotlin JVM + Dart) — the first tests come in PHASE 1.
 
 ---
 
-## 26. Ko'rib Chiqish Uchun Ochiq Qarorlar
+## 26. Open Decisions for Review
 
-| # | Qaror | Variantlar | Tavsiya |
+| # | Decision | Options | Recommendation |
 |---|-------|------------|---------|
-| 1 | Node ID = hash(pubkey) ga o'tish | ha / yo'q (MVP'da UUID) | MVP: UUID; P6 da o'tish |
-| 2 | minSdk 26 saqlash + BouncyCastle / minSdk 28 | 26 / 28 | 26 + BouncyCastle |
-| 3 | Routing: flooding (MVP) / darhol rank-based | flooding / rank | flooding |
-| 4 | Store-and-forward MVP'ga kiritsinmi | kiritsin / 5-fazada | PHASE 5 |
-| 5 | Monorepo restructure | hozir / P5 | P5 |
-| 6 | Service engine lifecycle birlashtirish | birik / keyin | PHASE 1 |
+| 1 | Switch to Node ID = hash(pubkey) | yes / no (UUID in the MVP) | MVP: UUID; migrate in P6 |
+| 2 | Keep minSdk 26 + BouncyCastle / minSdk 28 | 26 / 28 | 26 + BouncyCastle |
+| 3 | Routing: flooding (MVP) / rank-based immediately | flooding / rank | flooding |
+| 4 | Include store-and-forward in the MVP | include / in phase 5 | PHASE 5 |
+| 5 | Monorepo restructure | now / P5 | P5 |
+| 6 | Consolidate the service engine lifecycle | merge / later | PHASE 1 |
 
 ---
 
-## Xulosa
+## Conclusion
 
-MeshNet MVP'si uchun tanlangan stack:
+The stack chosen for the MeshNet MVP:
 
-- **Transport:** BLE (presence/fallback) + Wi-Fi Direct (asosiy), PHP uchrashma.
-- **Protokol:** binary qat'iy frame (43B header + payload_len).
+- **Transport:** BLE (presence/fallback) + Wi-Fi Direct (primary), mixed.
+- **Protocol:** binary strict frame (43B header + payload_len).
 - **Routing:** 2-hop controlled flooding (MVP) → rank-based (PHASE 4).
-- **Kripto:** X25519 (kalit almashish) + ChaCha20-Poly1305 (E2E AEAD).
-- **Identity:** 128-bit UUID + X25519 static keys, QR juftlash.
-- **Store-and-forward + ACK/retry:** PHASE 5 da to'liq, MVP'da delivery status.
+- **Crypto:** X25519 (key exchange) + ChaCha20-Poly1305 (E2E AEAD).
+- **Identity:** 128-bit UUID + X25519 static keys, QR pairing.
+- **Store-and-forward + ACK/retry:** full in PHASE 5; delivery status in the MVP.
 - **App:** Flutter (Riverpod) + Kotlin (Coroutines) + Platform Channel.
 
-**Keyingi qadam (PHASE 1):** arxitektura tasdiqlangach —
-1) kritik tuzatishlar (§25), 2) A↔B real qurilmalarda sinov.
+**Next step (PHASE 1):** once the architecture is approved —
+1) critical fixes (§25), 2) A↔B testing on real devices.
 
 ---
 

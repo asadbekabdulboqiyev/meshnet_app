@@ -160,10 +160,10 @@ void main() {
     test('roundtrip with unicode characters', () {
       final original = GroupMember(
         deviceId: 'dev',
-        displayName: 'Yangi foydalanuvchi',
+        displayName: 'New user',
       );
       final restored = GroupMember.fromMap(original.toMap());
-      expect(restored.displayName, 'Yangi foydalanuvchi');
+      expect(restored.displayName, 'New user');
     });
   });
 
@@ -406,16 +406,16 @@ void main() {
     test('roundtrip preserves special characters', () {
       final original = MeshGroup(
         groupId: 'g',
-        name: "O'zbekiston guruhi",
+        name: "Uzbekistan group",
         members: [
-          GroupMember(deviceId: 'd', displayName: 'Foydalanuvchi'),
+          GroupMember(deviceId: 'd', displayName: 'User'),
         ],
         createdAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
         createdBy: 'd',
       );
       final restored = MeshGroup.fromMap(original.toMap());
-      expect(restored.name, "O'zbekiston guruhi");
-      expect(restored.members[0].displayName, 'Foydalanuvchi');
+      expect(restored.name, "Uzbekistan group");
+      expect(restored.members[0].displayName, 'User');
     });
 
     test('roundtrip with many members', () {

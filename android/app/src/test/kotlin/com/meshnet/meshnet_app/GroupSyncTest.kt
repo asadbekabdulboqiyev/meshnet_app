@@ -19,9 +19,9 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 
 /**
- * Guruh sinxronizatsiyasi testlari: GROUP_CREATE tarqatish va qabul qilish.
- * Muammo: guruh faqat lokal yaratilar, boshqa qurilmalar ko'rmas edi.
- * Yechim: ta'rif a'zolarga juftlik kaliti bilan shifrlangan holda yuboriladi.
+ * Group synchronization tests: distributing and receiving GROUP_CREATE.
+ * Problem: groups were created only locally, other devices could not see them.
+ * Solution: the definition is sent to members encrypted with a pair key.
  */
 class GroupSyncTest {
 
@@ -241,7 +241,7 @@ class GroupSyncTest {
 
         // 2. Creator stores the group locally and sends a chat message.
         a.engine.storeGroup(group)
-        a.engine.sendGroupMessage(group.groupId, "salom jamoa")
+        a.engine.sendGroupMessage(group.groupId, "hello team")
 
         // 3. Member receives and decrypts it using the synced key.
         val msgFrames = a.emitted.filter { it.type == MessageType.GROUP_MSG }
@@ -250,7 +250,7 @@ class GroupSyncTest {
 
         val received = b.receivedGroupMessages()
         assertEquals(1, received.size)
-        assertEquals("salom jamoa", received.first().third)
+        assertEquals("hello team", received.first().third)
         assertEquals(group.groupId, received.first().first)
     }
 
@@ -294,11 +294,11 @@ class GroupSyncTest {
 
         val members = listOf(
             GroupStore.GroupMember(ID_A, "Al\\pha | beta\ngamma", "admin"),
-            GroupStore.GroupMember(ID_B, "O'zbek | nomi", "member"),
+            GroupStore.GroupMember(ID_B, "Uzbek | name", "member"),
         )
         val group = GroupStore.Group(
             groupId = "grp|weird\\id",
-            name = "Guruh | test\ndir",
+            name = "Group | test\ndir",
             members = members,
             symmetricKey = MeshCrypto.b64(ByteArray(32) { 0x42 }),
             createdAtMs = 1234567890L,
@@ -311,7 +311,7 @@ class GroupSyncTest {
         assertNotNull(stored)
         assertEquals(group.name, stored!!.name)
         assertEquals("Al\\pha | beta\ngamma", stored.members.first { it.deviceId == ID_A }.displayName)
-        assertEquals("O'zbek | nomi", stored.members.first { it.deviceId == ID_B }.displayName)
+        assertEquals("Uzbek | name", stored.members.first { it.deviceId == ID_B }.displayName)
     }
 
     // =================== group_messages persistence ===================

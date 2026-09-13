@@ -156,8 +156,8 @@ class MeshService {
     }
   }
 
-  /// TEP (Teno Event Protocol): signed app-level eventni mesh'ga broadcast
-  /// qiladi. Eventlar `tepEvent` stream'ida qabul qilinadi.
+  /// TEP (Teno Event Protocol): broadcasts a signed app-level event to
+  /// the mesh. Events are received on the `tepEvent` stream.
   /// Event turlari: peer.joined, message.relayed, file.transferred, group.updated.
   Future<bool> emitTepEvent(String type, String payload) async {
     try {
@@ -351,7 +351,7 @@ class MeshService {
     }
   }
 
-  /// Hostname'ni mesh orqali topish (local cache, bo'lmasa DNS_QUERY flood).
+  /// Resolves a hostname across the mesh (local cache, otherwise DNS_QUERY flood).
   Future<Map<String, dynamic>?> resolveHost(String hostname) async {
     try {
       final result = await _method.invokeMethod('resolveHost', {
@@ -368,7 +368,7 @@ class MeshService {
 
   // ---------------- LocalNet Files (Phase 2) ----------------
 
-  /// Mahalliy faylni LocalNet'ga ulashish. Manifest qaytaradi.
+  /// Share a local file with LocalNet. Returns the manifest.
   Future<Map<String, dynamic>?> shareLocalFile(String path) async {
     try {
       final result = await _method.invokeMethod('shareLocalFile', {
@@ -423,9 +423,9 @@ class MeshService {
     }
   }
 
-  /// Hostdan faylni yuklab olishni boshlash (chunkma-chunk, incremental).
-  /// Returns true when the fetch was started. Progress va yakun `events`
-  /// stream'dagi `fileSyncProgress` eventlari orqali keladi
+  /// Starts downloading a file from a host (chunk-by-chunk, incremental).
+  /// Returns true when the fetch was started. Progress and completion arrive
+  /// via the `fileSyncProgress` events on the stream
   /// (state: started/progress/done/failed).
   Future<bool> fetchHostFile(String hostname, String fileId) async {
     try {
@@ -441,7 +441,7 @@ class MeshService {
 
   // ---------------- LocalNet Collab (Phase 3) ----------------
 
-  /// Board yaratish / ochish (mavjud bo'lsa holatini qaytaradi).
+  /// Create/open a board (returns its state if it already exists).
   Future<Map<String, dynamic>?> createBoard(String roomId) async {
     try {
       final result = await _method.invokeMethod('createBoard', {'roomId': roomId});
@@ -507,7 +507,7 @@ class MeshService {
     }
   }
 
-  /// Hujjat matnini saqlash (rev +1, meshga broadcast).
+  /// Saves the document text (rev +1, broadcast to mesh).
   Future<int?> editDoc(String docId, String text) async {
     try {
       final result = await _method.invokeMethod('editDoc', {
@@ -545,7 +545,7 @@ class MeshService {
     }
   }
 
-  /// So'rovnoma uchun ovoz berish.
+  /// Casts a vote in a poll.
   Future<bool> votePoll(String pollId, int optionIndex) async {
     try {
       final result = await _method.invokeMethod('votePoll', {
@@ -573,7 +573,7 @@ class MeshService {
 
   // ---------------- LocalNet App Distribution (Phase 4) ----------------
 
-  /// Biz share qilgan APK'lar (metadata bilan).
+  /// APKs we have shared (with metadata).
   Future<List<Map<String, dynamic>>> getLocalApps() async {
     try {
       final result = await _method.invokeMethod('getLocalApps');
@@ -614,7 +614,7 @@ class MeshService {
 
   // ---------------- Internet Gateway (Phase 5) ----------------
 
-  /// O'z internetimizni mesh tarmoqqa ochish (HTTP/CONNECT proxy).
+  /// Exposes our own internet to the mesh (HTTP/CONNECT proxy).
   Future<Map<String, dynamic>> startInternetGateway({int port = 0}) async {
     try {
       final result = await _method.invokeMethod('startInternetGateway', {'port': port});
@@ -698,7 +698,7 @@ class MeshService {
     }
   }
 
-  /// O'z emergency alert'imizni bekor qilish.
+  /// Cancel our own emergency alert.
   Future<bool> cancelEmergency(String alertId) async {
     try {
       final result = await _method.invokeMethod('cancelEmergency', {'alertId': alertId});
@@ -744,7 +744,7 @@ class MeshService {
     }
   }
 
-  /// Resource uchun role o'rnatish.
+  /// Sets the role for a resource.
   Future<bool> setResourceRole({
     required String resourceType,
     required String resourceId,
@@ -804,7 +804,7 @@ class MeshService {
     }
   }
 
-  /// Xabarlar ichida qidiruv (lokal bazada).
+  /// Searches inside messages (in the local database).
   Future<List<Map<String, dynamic>>> searchMessages({
     required String query,
     String? deviceId,

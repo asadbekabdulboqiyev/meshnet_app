@@ -98,7 +98,7 @@ class MeshEngine(private val context: Context) {
         handleMethodCall(call, result)
     }
 
-    /** EventChannel stream (Flutter tomondan) setup. */
+    /** EventChannel stream setup (from the Flutter side). */
     val eventListener = object : EventChannel.StreamHandler {
         override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
             eventSink = events
@@ -192,7 +192,7 @@ class MeshEngine(private val context: Context) {
                 val frame = tepEventManager.buildTepFrame(
                     type = type,
                     payload = payload.toByteArray(),
-                    msgSeq = 0, // routing.sendTepEvent() real seq'ni qo'yadi
+                    msgSeq = 0, // routing.sendTepEvent() assigns the real seq
                 )
                 val sent = routing.sendTepEvent(frame)
                 result.success(mapOf(
@@ -1060,9 +1060,9 @@ class MeshEngine(private val context: Context) {
         )
         routing.setIdentityPublicKey(identity.publicKey())
         routing.addListener(routingListener)
-        // TEP (Teno Event Protocol): signed app-level eventlarni mesh bo'ylab
-        // broadcast qilish/qabul qilish (spec/transport-mesh.md). Secret —
-        // maxsus app-level kalit; ishlab chiqarishda secure storage'dan olinadi.
+        // TEP (Teno Event Protocol): broadcasting/receiving signed app-level
+        // events over the mesh (spec/transport-mesh.md). Secret — a dedicated
+        // app-level key; in production it is read from secure storage.
         tepEventManager = TepEventManager(
             senderDeviceId = identity.deviceId(),
             source = "meshnet",
@@ -1597,8 +1597,8 @@ class MeshEngine(private val context: Context) {
     }
 
     /**
-     * TEP secret: identity private key'dan SHA-256 orqali 32 bayt kalit
-     * hosil qiladi. Har doim bir xil natija — secure storage kerak emas.
+     * TEP secret: derives a 32-byte key via SHA-256 over the identity private key.
+     * The result is always identical, so secure storage is not required.
      */
     private fun securedTepSecret(): ByteArray {
         val digest = java.security.MessageDigest.getInstance("SHA-256")

@@ -9,8 +9,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * DnsRegistry testlari: hostname validatsiya, o'z nomini ro'yxatga olish,
- * masofaviy announce, konflikt hal qilish (deterministik), TTL va lookup.
+ * DnsRegistry tests: hostname validation, self-registration,
+ * remote announce, deterministic conflict resolution, TTL, and lookup.
  */
 class DnsRegistryTest {
 
@@ -40,7 +40,7 @@ class DnsRegistryTest {
         assertFalse(DnsRegistry.isValidHostname("trailing-"))
         assertFalse(DnsRegistry.isValidHostname("has space"))
         assertFalse(DnsRegistry.isValidHostname("dot.name"))
-        assertFalse(DnsRegistry.isValidHostname("uzbekcha'apos"))
+        assertFalse(DnsRegistry.isValidHostname("invalid'apos"))
         assertFalse(DnsRegistry.isValidHostname("a".repeat(64)))
     }
 

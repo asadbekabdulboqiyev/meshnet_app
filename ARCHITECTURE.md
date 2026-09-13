@@ -161,14 +161,14 @@ A ──── B ──── C
 
 ### TEP (Teno Event Protocol)
 
-MeshNet app-level hodisalarini signature va idempotency bilan tarqatadi
-(`tep/` paketi — `TepEventManager`, vendored `FrameCodec`/`Signature`).
+MeshNet distributes app-level events with signatures and idempotency
+(`tep/` package — `TepEventManager`, vendored `FrameCodec`/`Signature`).
 
 - **Frame**: `MessageType.TEP_EVENT` (0x29), broadcast relay
-- **Eventlar**: `peer.joined`, `message.relayed`, `file.transferred`, `group.updated`
-- **Imzo**: HMAC-SHA256 (32 bayt), kalit identity private key'dan SHA-256
-- **Idempotency**: `event_id` → 24 soat TTL dedupe (loop prevention)
-- **API**: Flutter — `emitTepEvent(type, payload)`, eventlar → `tepEvent` stream
+- **Events**: `peer.joined`, `message.relayed`, `file.transferred`, `group.updated`
+- **Signature**: HMAC-SHA256 (32 bytes), keyed by SHA-256 of the identity private key
+- **Idempotency**: `event_id` → 24-hour TTL dedupe (loop prevention)
+- **API**: Flutter — `emitTepEvent(type, payload)`, events → `tepEvent` stream
 - **Spec**: `spec/transport-mesh.md` (Teno Event Protocol monorepo)
 
 ### Transport Layer

@@ -6,12 +6,12 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * TepEventManager — mesh ichida app-level TEP eventlar:
+ * TepEventManager — app-level TEP events over the mesh:
  * peer.joined, message.relayed, file.transferred, group.updated.
  *
- * Frame'larni RoutingEngine (MessageType.TEP_EVENT) orqali relay qilinadi,
- * hopLimit/ttl o'zgartirilmaydi (spec/transport-mesh.md). Idempotency
- * event_id -> seen (TTL 24 soat) bilan ta'minlanadi.
+ * Frames are relayed through the RoutingEngine (MessageType.TEP_EVENT) without
+ * modifying hopLimit/ttl (spec/transport-mesh.md). Idempotency is ensured by
+ * event_id -> seen (TTL 24 hours).
  */
 class TepEventManager(
     private val senderDeviceId: String,
@@ -64,7 +64,7 @@ class TepEventManager(
             type = MessageType.TEP_EVENT,
             hopLimit = MAX_HOP,
             ttl = MAX_TTL,
-            encrypted = false, // TEP asosiy sifrlash oz ustida; payload E2E boshqa qatlamda
+            encrypted = false, // TEP carries its own signing; payload is E2E encrypted at another layer
             senderId = senderDeviceId,
             targetId = MeshFrame.BROADCAST,
             msgSeq = msgSeq,
@@ -90,7 +90,7 @@ class TepEventManager(
         return event
     }
 
-    /** Idempotency: event_id 24 soat TTL (loop prevention). */
+    /** Idempotency: event_id 24-hour TTL (loop prevention). */
     fun isFirstSeen(eventId: String): Boolean {
         val now = System.currentTimeMillis()
         // TTL cleanup
@@ -105,7 +105,7 @@ class TepEventManager(
     fun seenCount(): Int = seenEvents.size
 
     companion object {
-        const val TTL_MS = 24 * 60 * 60 * 1000L // 24 soat
+        const val TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
 
         const val MAX_HOP = 6
         const val MAX_TTL = 6

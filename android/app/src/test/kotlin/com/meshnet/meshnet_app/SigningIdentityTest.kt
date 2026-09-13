@@ -8,8 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * SigningIdentity testlari: ECDSA P-256 identitet,
- * imzo yaratish/yuklash, imzo berish va tasdiqlash.
+ * SigningIdentity tests: ECDSA P-256 identity,
+ * generating/loading keys, signing, and verification.
  */
 class SigningIdentityTest {
 
@@ -69,7 +69,7 @@ class SigningIdentityTest {
         val testMessages = listOf(
             "short",
             "This is a longer message for testing",
-            "Unicode: 🚀 o'zbekcha matn",
+            "Unicode: 🚀 uzbek text",
             "",
             "1234567890"
         )

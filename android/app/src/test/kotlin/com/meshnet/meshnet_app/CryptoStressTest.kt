@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * MeshCrypto stress testlari: edge cases, performance, boundary conditions.
+ * MeshCrypto stress tests: edge cases, performance, boundary conditions.
  */
 class CryptoStressTest {
 

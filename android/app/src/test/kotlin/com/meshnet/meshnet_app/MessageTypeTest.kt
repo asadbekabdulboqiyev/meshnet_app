@@ -6,7 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * MessageType testlari: fromCode barcha 22 ta code uchun, noto'g'ri code.
+ * MessageType tests: fromCode for all codes, invalid codes.
  */
 class MessageTypeTest {
 

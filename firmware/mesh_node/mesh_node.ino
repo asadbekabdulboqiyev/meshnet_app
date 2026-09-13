@@ -1,22 +1,22 @@
 /*
  * MeshNet — ESP32-C3 BLE relay node (PHASE 7)
  *
- * Maqsad: telefonlar orasida "shaffof repeater" — Android app'siz ham
- * xabarlarni uzatish. App bilan to'liq wire-kompatibil:
- *  - GATT servis/char: BleTransport.kt bilan bir xil UUID
- *  - Reklama (MFG data): 0x4D4E LE + MARKER + 16B node deviceId
+ * Purpose: a "transparent repeater" between phones — relays messages even
+ * without the Android app. Fully wire-compatible with the app:
+ *  - GATT service/char: same UUIDs as BleTransport.kt
+ *  - Advertising (MFG data): 0x4D4E LE + MARKER + 16B node deviceId
  *  - Frame: MESH_PROTOCOL.md §3 (MeshFrame.kt encode/decode)
- *  - Har bir BLE write = bitta to'liq frame (≤244 bayt), qayta yig'ish yo'q
+ *  - Each BLE write = one complete frame (≤244 bytes), no reassembly
  *
- * Oqim:  Phone A --write--> node RX char --(dedup/ttl)---> node --> Phone B
+ * Flow:  Phone A --write--> node RX char --(dedup/ttl)---> node --> Phone B
  *        (node = GATT server)                       (node = GATT client)
  *
- * Node o'zi xabar yaratmaydi va ochmaydi (E2E shifrlangan) — faqat uzatadi.
+ * The node does not create or decrypt messages (E2E encrypted) — it only relays.
  *
- * ESP32-C3 build'i NimBLE stack'idan foydalanadi (CONFIG_BT_NIMBLE_ENABLED):
- *  - MTU avtomatik 256 gacha kelishiladi (244 baytli frame sig'adi)
- *  - MAX_CONNECTIONS=3 -> telefonga ulanishlar soni cheklangan
- *  - onWrite/onConnect callback'lariga ble_gap_conn_desc* uzatiladi
+ * The ESP32-C3 build uses the NimBLE stack (CONFIG_BT_NIMBLE_ENABLED):
+ *  - MTU auto-negotiated up to 256 (a 244-byte frame fits)
+ *  - MAX_CONNECTIONS=3 -> number of phone connections is limited
+ *  - ble_gap_conn_desc* is passed to onWrite/onConnect callbacks
  */
 
 #include <Arduino.h>
@@ -29,41 +29,41 @@
 #include "mesh_frame.h"
 #include "relay.h"
 
-// ---------------- GATT kontrakti (BleTransport.kt bilan bir xil) ----------------
+// ---------------- GATT contract (identical to BleTransport.kt) ----------------
 static const char *SERVICE_UUID = "6a4e9f01-1d5b-4f1a-8f2b-2e75a4b8c0d1";
 static const char *TX_CHAR_UUID = "6a4e9f02-1d5b-4f1a-8f2b-2e75a4b8c0d1";
 static const char *RX_CHAR_UUID = "6a4e9f03-1d5b-4f1a-8f2b-2e75a4b8c0d1";
 
-// Reklama: [4E 4D][4D 4E][nodeId(16)]  (0x4D4E LE + MARKER + id)
+// Advertising: [4E 4D][4D 4E][nodeId(16)]  (0x4D4E LE + MARKER + id)
 #define MFG_B0 0x4E
 #define MFG_B1 0x4D
 #define MFG_B2 0x4D
 #define MFG_B3 0x4E
 #define MFG_TOTAL (4 + MESH_ID_BYTES) /* 20 */
 
-// NimBLE MAX_CONNECTIONS=3 -> server + client linklari jami 3 bo'lishi mumkin
+// NimBLE MAX_CONNECTIONS=3 -> server + client links total 3
 #define MAX_PHONE_CLIENTS 2
 
 static uint8_t nodeId[MESH_ID_BYTES];
 static relay_ctx_t relayCtx;
 
-// ---------------- Server tomoni: telefonlar node'ga ulanadi ----------------
+// ---------------- Server side: phones connect to the node ----------------
 static BLEServer *pServer = nullptr;
 static BLECharacteristic *rxChar = nullptr;
 
 class ServerCallbacks : public BLEServerCallbacks {
     void onConnect(BLEServer *srv) override {
-        Serial.printf("[srv] telefon ulandi (ulanishlar: %d)\n", srv->getConnectedCount());
+        Serial.printf("[srv] phone connected (connections: %d)\n", srv->getConnectedCount());
     }
     void onDisconnect(BLEServer *srv) override {
-        Serial.printf("[srv] telefon uzildi\n");
+        Serial.printf("[srv] phone disconnected\n");
     }
 };
 
-// ---------------- Client tomoni: node telefonlarga ulanadi ----------------
+// ---------------- Client side: the node connects to phones ----------------
 struct phone_client_t {
     bool used;
-    bool ready;             // ulangan + RX char topildi
+    bool ready;             // connected + RX char found
     uint8_t addr[6];
     uint8_t deviceId[MESH_ID_BYTES];
     BLEClient *client;
@@ -75,35 +75,35 @@ static phone_client_t phones[MAX_PHONE_CLIENTS];
 
 class ClientCallbacks : public BLEClientCallbacks {
     void onConnect(BLEClient *c) override {
-        Serial.printf("[clt] ulandi: %s\n", c->getPeerAddress().toString().c_str());
+        Serial.printf("[clt] connected: %s\n", c->getPeerAddress().toString().c_str());
     }
     void onDisconnect(BLEClient *c) override {
         for (int i = 0; i < MAX_PHONE_CLIENTS; i++) {
             if (phones[i].used && phones[i].client == c) {
                 phones[i].ready = false;
-                Serial.printf("[clt] uzildi: %s\n", c->getPeerAddress().toString().c_str());
+                Serial.printf("[clt] disconnected: %s\n", c->getPeerAddress().toString().c_str());
             }
         }
     }
 };
 
-// ---------------- Relay: RX'ga write kelganda ----------------
+// ---------------- Relay: when a write arrives on RX ----------------
 class RxCallbacks : public BLECharacteristicCallbacks {
-    // NimBLE: onWrite param o'rniga ble_gap_conn_desc* beriladi (manba addres uchun)
+    // NimBLE: ble_gap_conn_desc* is passed instead of the onWrite param (for source address)
     void onWrite(BLECharacteristic *c, ble_gap_conn_desc *desc) override {
         String data = c->getValue();
         if (data.length() == 0) return;
 
         mesh_frame_t f;
         if (!mesh_frame_parse((const uint8_t *)data.c_str(), data.length(), &f)) {
-            Serial.println("[relay] yaroqsiz frame tashlandi");
+            Serial.println("[relay] invalid frame dropped");
             return;
         }
 
         int reason = 0;
         uint32_t now = millis();
         if (!relay_decide(&relayCtx, &f, now, &reason)) {
-            Serial.printf("[relay] tashlandi reason=%d\n", reason);
+            Serial.printf("[relay] dropped reason=%d\n", reason);
             return;
         }
 
@@ -113,19 +113,19 @@ class RxCallbacks : public BLECharacteristicCallbacks {
         size_t n = mesh_frame_encode(&f, out, sizeof(out));
         if (n == 0) return;
 
-        // Manbani aniqlaymiz — unga qaytarib yubormaymiz
+        // Identify the source — do not relay back to it
         uint8_t *srcAddr = desc->peer_id_addr.val;
 
         int fwd = 0;
         for (int i = 0; i < MAX_PHONE_CLIENTS; i++) {
             phone_client_t &p = phones[i];
             if (!p.used || !p.ready || p.outLen > 0) continue;
-            if (memcmp(p.addr, srcAddr, 6) == 0) continue; // manbaga qaytarilmaydi
+            if (memcmp(p.addr, srcAddr, 6) == 0) continue; // not sent back to source
             memcpy(p.outBuf, out, n);
             p.outLen = n;
             fwd++;
         }
-        Serial.printf("[relay] forward %d telefon(ga) (%d bayt)\n", fwd, (int)n);
+        Serial.printf("[relay] forwarded to %d phone(s) (%d bytes)\n", fwd, (int)n);
     }
 };
 
@@ -133,7 +133,7 @@ static ServerCallbacks serverCbs;
 static ClientCallbacks clientCbs;
 static RxCallbacks rxCbs;
 
-// ---------------- Reklama ----------------
+// ---------------- Advertising ----------------
 static void startAdvertising() {
     uint8_t mfg[MFG_TOTAL];
     mfg[0] = MFG_B0; mfg[1] = MFG_B1; mfg[2] = MFG_B2; mfg[3] = MFG_B3;
@@ -148,7 +148,7 @@ static void startAdvertising() {
     adv->start();
 }
 
-// ---------------- Client: telefonlar bilan ishlash ----------------
+// ---------------- Client: working with phones ----------------
 static int findPhoneSlot() {
     for (int i = 0; i < MAX_PHONE_CLIENTS; i++) {
         if (!phones[i].used) return i;
@@ -179,17 +179,17 @@ static void connectToPhone(BLEAddress addr, uint8_t addrType,
     p.client->setClientCallbacks(&clientCbs);
     p.rx = nullptr;
 
-    Serial.printf("[clt] ulanmoqda: %s\n", addr.toString().c_str());
+    Serial.printf("[clt] connecting: %s\n", addr.toString().c_str());
     if (!p.client->connect(addr, addrType, 8000)) {
         p.client->disconnect();
-        delete p.client; // BLEDevice::createClient() heap'da yaratadi
+        delete p.client; // BLEDevice::createClient() allocates on the heap
         p.client = nullptr;
         p.used = false;
-        Serial.println("[clt] ulanish muvaffaqiyatsiz");
+        Serial.println("[clt] connection failed");
         return;
     }
 
-    // Katta MTU so'raymiz (244 baytli frame bitta write'da o'tishi uchun)
+    // Request a large MTU (so a 244-byte frame fits in a single write)
     p.client->setMTU(512);
 
     BLERemoteService *svc = p.client->getService(BLEUUID(SERVICE_UUID));
@@ -197,7 +197,7 @@ static void connectToPhone(BLEAddress addr, uint8_t addrType,
         p.rx = svc->getCharacteristic(BLEUUID(RX_CHAR_UUID));
     }
     if (p.rx == nullptr) {
-        Serial.println("[clt] RX char topilmadi — qurilma app emas");
+        Serial.println("[clt] RX char not found — device is not the app");
         p.client->disconnect();
         delete p.client;
         p.client = nullptr;
@@ -205,7 +205,7 @@ static void connectToPhone(BLEAddress addr, uint8_t addrType,
         return;
     }
     p.ready = true;
-    Serial.printf("[clt] tayyor: %s\n", addr.toString().c_str());
+    Serial.printf("[clt] ready: %s\n", addr.toString().c_str());
 }
 
 static void scanAndConnect() {
@@ -226,18 +226,18 @@ static void scanAndConnect() {
 
         uint8_t devId[MESH_ID_BYTES];
         memcpy(devId, b + 4, MESH_ID_BYTES);
-        // O'zimizni hisobga olmaymiz
+        // Ignore ourselves
         if (mesh_frame_id_equals(devId, nodeId)) continue;
 
-        if (findPhoneByAddr(dev.getAddress().getNative()) >= 0) continue; // allaqachon bor
+        if (findPhoneByAddr(dev.getAddress().getNative()) >= 0) continue; // already connected
 
-        if (findPhoneSlot() < 0) break; // bo'sh slot yo'q
+        if (findPhoneSlot() < 0) break; // no free slot
 
         connectToPhone(dev.getAddress(), dev.getAddressType(), devId);
         found++;
     }
     scan->clearResults();
-    Serial.printf("[scan] %d ta yangi telefon ulandi\n", found);
+    Serial.printf("[scan] connected to %d new phone(s)\n", found);
 }
 
 static void drainOutgoing() {
@@ -246,9 +246,9 @@ static void drainOutgoing() {
         if (!p.used || !p.ready || p.outLen == 0) continue;
         if (p.rx == nullptr) continue;
         if (p.rx->writeValue(p.outBuf, p.outLen, true)) {
-            Serial.printf("[clt] %d bayt yuborildi\n", (int)p.outLen);
+            Serial.printf("[clt] sent %d bytes\n", (int)p.outLen);
         } else {
-            Serial.println("[clt] write muvaffaqiyatsiz");
+            Serial.println("[clt] write failed");
         }
         p.outLen = 0;
     }
@@ -267,7 +267,7 @@ void setup() {
                   nodeId[0], nodeId[1], nodeId[2], nodeId[3]);
 
     BLEDevice::init("MeshNode");
-    // NimBLE MTU avtomatik 256 gacha kelishiladi — 244 baytli frame sig'adi
+    // NimBLE MTU auto-negotiates to up to 256 — a 244-byte frame fits
 
     pServer = BLEDevice::createServer();
     pServer->setCallbacks(&serverCbs);
@@ -277,25 +277,25 @@ void setup() {
         BLEUUID(RX_CHAR_UUID),
         BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
     rxChar->setCallbacks(&rxCbs);
-    // TX char (kelajakda notify uchun) — hozir o'qish mumkin
+    // TX char (for future notify) — currently readable
     svc->createCharacteristic(BLEUUID(TX_CHAR_UUID), BLECharacteristic::PROPERTY_READ);
     svc->start();
 
     pServer->getAdvertising()->addServiceUUID(BLEUUID(SERVICE_UUID));
     startAdvertising();
 
-    Serial.println("[node] tayyor");
+    Serial.println("[node] ready");
 }
 
 void loop() {
-    // 1) Telefonlarga ulanish (har ~8s)
+    // 1) Connect to phones (every ~8s)
     static uint32_t lastScan = 0;
     if (millis() - lastScan > 8000) {
         lastScan = millis();
         scanAndConnect();
     }
 
-    // 2) Navbatdagi framelarni telefonlarga yozish
+    // 2) Write queued frames to phones
     drainOutgoing();
 
     delay(50);

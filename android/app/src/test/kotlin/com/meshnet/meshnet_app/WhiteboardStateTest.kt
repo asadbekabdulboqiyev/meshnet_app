@@ -11,8 +11,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 /**
- * WhiteboardState testlari: stroke dedup, cap (eng eskisi tashlanadi),
- * clear va LNBOARD snapshot roundtrip.
+ * WhiteboardState tests: stroke dedup, cap (the oldest is dropped),
+ * clear, and LNBOARD snapshot roundtrip.
  */
 class WhiteboardStateTest {
 

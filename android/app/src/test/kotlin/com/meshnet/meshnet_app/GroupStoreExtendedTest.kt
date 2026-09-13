@@ -16,7 +16,7 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 
 /**
- * GroupStore kengaytirilgan testlari: edge cases, boundary conditions,
+ * GroupStore extended tests: edge cases, boundary conditions,
  * multiple operations, name/role edge cases.
  */
 class GroupStoreExtendedTest {
@@ -79,8 +79,8 @@ class GroupStoreExtendedTest {
 
     @Test
     fun createGroup_specialCharactersName() {
-        val group = groupStore.createGroup("O'tkan chiziq & maxsus", emptyList(), CREATOR)
-        assertEquals("O'tkan chiziq & maxsus", group.name)
+        val group = groupStore.createGroup("Apostrophe & special", emptyList(), CREATOR)
+        assertEquals("Apostrophe & special", group.name)
     }
 
     @Test
@@ -92,8 +92,8 @@ class GroupStoreExtendedTest {
 
     @Test
     fun createGroup_unicodeName() {
-        val group = groupStore.createGroup("Yangi foydalanuvchi guruhi", emptyList(), CREATOR)
-        assertEquals("Yangi foydalanuvchi guruhi", group.name)
+        val group = groupStore.createGroup("New user group", emptyList(), CREATOR)
+        assertEquals("New user group", group.name)
     }
 
     // =================== Role edge cases ===================

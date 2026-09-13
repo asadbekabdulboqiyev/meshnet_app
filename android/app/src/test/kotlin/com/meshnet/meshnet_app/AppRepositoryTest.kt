@@ -21,8 +21,8 @@ import android.content.Context
 import java.io.File
 
 /**
- * Phase 4 unit testlari: AppRepository mantig'i (APK filtrlash, metadata
- * extraction, kesh, download path). PackageManager o'rniga fake extractor.
+ * Phase 4 unit tests: AppRepository logic (APK filtering, metadata
+ * extraction, caching, download path). Uses a fake extractor instead of PackageManager.
  */
 class AppRepositoryTest {
 

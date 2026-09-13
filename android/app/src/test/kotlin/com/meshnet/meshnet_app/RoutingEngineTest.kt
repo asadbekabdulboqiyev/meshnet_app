@@ -18,9 +18,9 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 
 /**
- * RoutingEngine testlari: 2-hop relay, dublikat nazorati, E2E shifrlash va
- * delivery report. PeerStore real instance (mock SharedPreferences bilan)
- * ishlatiladi — shuning uchun PeerStore in-memory keshga ega.
+ * RoutingEngine tests: 2-hop relay, duplicate control, E2E encryption, and
+ * delivery reports. Uses a real PeerStore instance (with a mocked SharedPreferences),
+ * so PeerStore has an in-memory cache.
  */
 class RoutingEngineTest {
 
@@ -31,7 +31,7 @@ class RoutingEngineTest {
         private const val ID_M = "dddddddd-dddd-dddd-dddd-dddddddddddd"
     }
 
-    /** Har bir engine uchun listener + chiqqan framelar ro'yxati. */
+    /** Listener + emitted-frames list for each engine. */
     private class Harness(
         val engine: RoutingEngine,
         val peerStore: PeerStore,
@@ -95,7 +95,7 @@ class RoutingEngineTest {
         val keyB = MeshCrypto.generateKeyPair()
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(keyB.publicKey))
 
-        val msgId = a.engine.sendText(ID_B, "salom do'st")
+        val msgId = a.engine.sendText(ID_B, "hello friend")
 
         assertNotNull(msgId)
         assertEquals(1, a.emitted.size)
@@ -110,7 +110,7 @@ class RoutingEngineTest {
     fun sendText_toUnauthorizedPeer_rejected() {
         val a = makeEngine(ID_A, MeshCrypto.generateKeyPair())
 
-        val msgId = a.engine.sendText(ID_B, "salom")
+        val msgId = a.engine.sendText(ID_B, "hello")
 
         assertNull(msgId)
         assertTrue(a.emitted.isEmpty())
@@ -125,21 +125,21 @@ class RoutingEngineTest {
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(keyB.publicKey))
         b.peerStore.markAuthorized(ID_A, MeshCrypto.b64(keyA.publicKey))
 
-        val msgId = a.engine.sendText(ID_B, "salom do'st")
+        val msgId = a.engine.sendText(ID_B, "hello friend")
         val textFrame = a.emitted.last()
 
-        // B qabul qiladi
+        // B receives
         b.engine.handleIncomingFrame(textFrame)
         assertEquals(1, b.receivedMessages.size)
-        assertEquals("salom do'st", b.receivedMessages.first().second)
+        assertEquals("hello friend", b.receivedMessages.first().second)
         assertEquals(msgId, b.receivedMessages.first().third)
 
-        // B delivery report qaytaradi
+        // B sends a delivery report
         val reportFrame = b.emitted.last()
         assertEquals(MessageType.DELIVERY_REPORT, reportFrame.type)
         assertEquals(ID_A, reportFrame.targetId)
 
-        // A reportni qayta ishlaydi
+        // A processes the report
         a.engine.handleIncomingFrame(reportFrame)
         assertEquals(1, a.deliveryReports.size)
         assertEquals(msgId, a.deliveryReports.first().first)
@@ -155,11 +155,11 @@ class RoutingEngineTest {
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(keyB.publicKey))
         b.peerStore.markAuthorized(ID_A, MeshCrypto.b64(keyA.publicKey))
 
-        a.engine.sendText(ID_B, "takrorlanuvchi")
+        a.engine.sendText(ID_B, "duplicate")
         val textFrame = a.emitted.last()
 
         b.engine.handleIncomingFrame(textFrame)
-        b.engine.handleIncomingFrame(textFrame) // dublikat
+        b.engine.handleIncomingFrame(textFrame) // duplicate
 
         assertEquals(1, b.receivedMessages.size)
         assertEquals(1, b.emitted.filter { it.type == MessageType.DELIVERY_REPORT }.size)
@@ -173,10 +173,11 @@ class RoutingEngineTest {
         val m = makeEngine(ID_M, MeshCrypto.generateKeyPair())
         a.peerStore.markAuthorized(ID_C, MeshCrypto.b64(keyC.publicKey))
 
-        a.engine.sendText(ID_C, "orqali uzatiladigan xabar")
+        a.engine.sendText(ID_C, "message relayed through"
+)
         val textFrame = a.emitted.last()
 
-        // M qabul qiladi: target C (M emas), hopLimit 2 > 0 -> relay
+        // M receives: target is C (not M), hopLimit 2 > 0 -> relay
         m.engine.handleIncomingFrame(textFrame)
 
         assertEquals(1, m.emitted.size)
@@ -186,7 +187,7 @@ class RoutingEngineTest {
         val inner = MeshFrame.decode(relay.payload)!!
         assertEquals(MessageType.TEXT, inner.type)
         assertEquals(ID_C, inner.targetId)
-        // RELAY o'rab turuvchi hopLimit kamaytirildi (4 -> 3)
+        // The RELAY wrapper's hopLimit was decreased (4 -> 3)
         assertEquals(3, relay.hopLimit)
         assertEquals(4, inner.hopLimit)
     }
@@ -195,7 +196,7 @@ class RoutingEngineTest {
     fun relay_stopsWhenHopLimitExhausted() {
         val m = makeEngine(ID_M, MeshCrypto.generateKeyPair())
 
-        // hopLimit=1: relayFrame nextHop=0 -> uzatish to'xtaydi
+        // hopLimit=1: nextHop=0 -> relay stops
         val frame = MeshFrame(
             type = MessageType.TEXT,
             hopLimit = 1,
@@ -239,7 +240,7 @@ class RoutingEngineTest {
         assertEquals(MessageType.PAIR_ACK, ack.type)
         assertEquals(ID_A, ack.targetId)
 
-        // A ACK qabul qiladi -> B authorized bo'ladi
+        // A receives the ACK -> B becomes authorized
         a.engine.handleIncomingFrame(ack)
         assertNotNull(a.peerStore.authorized(ID_B))
     }
@@ -253,14 +254,14 @@ class RoutingEngineTest {
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(keyB.publicKey))
         b.peerStore.markAuthorized(ID_A, MeshCrypto.b64(keyA.publicKey))
 
-        a.engine.sendText(ID_B, "shifrlangan xabar")
+        a.engine.sendText(ID_B, "encrypted message")
         val textFrame = a.emitted.last().let {
             it.copy(payload = it.payload.also { p -> p[p.size - 1] = (p.last().toInt() xor 0x01).toByte() })
         }
 
         b.engine.handleIncomingFrame(textFrame)
 
-        // Ochib bo'lmaydi: foydalanuvchiga berilmaydi, failed report yuboriladi
+        // Cannot be opened: not delivered to the user, a failed report is sent
         assertTrue(b.receivedMessages.isEmpty())
         val report = b.emitted.last()
         assertEquals(MessageType.DELIVERY_REPORT, report.type)
@@ -279,37 +280,37 @@ class RoutingEngineTest {
         a.peerStore.markAuthorized(ID_C, MeshCrypto.b64(keyC.publicKey))
         c.peerStore.markAuthorized(ID_A, MeshCrypto.b64(keyA.publicKey))
 
-        // A -> C (B orqali 2-hop)
-        val msgId = a.engine.sendText(ID_C, "ikki pog'onali xabar")
+        // A -> C (2-hop via B)
+        val msgId = a.engine.sendText(ID_C, "two-hop message")
         val textFrame = a.emitted.last()
 
-        // B relay qiladi (RELAY emisi)
+        // B relays (emits RELAY)
         b.engine.handleIncomingFrame(textFrame)
         val relay = b.emitted.single { it.type == MessageType.RELAY }
         assertEquals(3, relay.hopLimit)
 
-        // C RELAY qabul qiladi va yetkazadi (bitta marta)
+        // C receives the RELAY and delivers it (exactly once)
         c.engine.handleIncomingFrame(relay)
         assertEquals(1, c.receivedMessages.size)
-        assertEquals("ikki pog'onali xabar", c.receivedMessages.first().second)
+        assertEquals("two-hop message", c.receivedMessages.first().second)
         assertEquals(msgId, c.receivedMessages.first().third)
 
-        // C delivery report -> A ga (B orqali)
+        // C sends a delivery report to A (via B)
         val report = c.emitted.last()
         assertEquals(MessageType.DELIVERY_REPORT, report.type)
         assertEquals(ID_A, report.targetId)
 
-        // B reportni relay qiladi
+        // B relays the report
         b.engine.handleIncomingFrame(report)
         val reportRelay = b.emitted.filter { it.type == MessageType.RELAY }.last()
 
-        // A reportni qabul qiladi
+        // A receives the report
         a.engine.handleIncomingFrame(reportRelay)
         assertEquals(1, a.deliveryReports.size)
         assertEquals(msgId, a.deliveryReports.first().first)
         assertTrue(a.deliveryReports.first().second)
 
-        // Statistika hisoblagichlari (TEXT + DELIVERY_REPORT relay)
+        // Statistics counters (TEXT + DELIVERY_REPORT relay)
         assertEquals(2L, b.engine.stats()["framesRelayed"])
         assertEquals(1L, c.engine.stats()["messagesDelivered"])
         assertEquals(1L, a.engine.stats()["messagesSent"])
@@ -325,16 +326,16 @@ class RoutingEngineTest {
         a.peerStore.markAuthorized(ID_C, MeshCrypto.b64(keyC.publicKey))
         c.peerStore.markAuthorized(ID_A, MeshCrypto.b64(keyA.publicKey))
 
-        a.engine.sendText(ID_C, "dublikat relay")
+        a.engine.sendText(ID_C, "duplicate relay")
         b.engine.handleIncomingFrame(a.emitted.last())
         val relay = b.emitted.single { it.type == MessageType.RELAY }
 
-        // Dublikat RELAY nusxasi ham C'ga yetib keladi (flood)
+        // A duplicate copy of the RELAY also reaches C (flood)
         c.engine.handleIncomingFrame(relay)
         c.engine.handleIncomingFrame(relay)
 
         assertEquals(1, c.receivedMessages.size)
-        // Faqat bitta delivery report (dublikat uchun emas)
+        // Only one delivery report (not for the duplicate)
         assertEquals(1, c.emitted.filter { it.type == MessageType.DELIVERY_REPORT }.size)
         assertEquals(1L, c.engine.stats()["duplicatesDropped"])
     }
@@ -348,11 +349,11 @@ class RoutingEngineTest {
         val textFrame = a.emitted.last()
         a.emitted.clear()
 
-        // Flood orqachali qaytgan o'z frame'i (A <- B <- A)
+        // Our own frame returning over the flood (A <- B <- A)
         a.engine.handleIncomingFrame(textFrame)
 
-        assertTrue(a.receivedMessages.isEmpty()) // o'z xabari yetkazilmaydi
-        assertTrue(a.emitted.isEmpty()) // qayta relay qilinmaydi
+        assertTrue(a.receivedMessages.isEmpty()) // own message is not delivered
+        assertTrue(a.emitted.isEmpty()) // not relayed again
         assertEquals(1L, a.engine.stats()["duplicatesDropped"])
     }
 
@@ -369,7 +370,7 @@ class RoutingEngineTest {
         c.engine.handleIncomingFrame(a.emitted.last())
         val report = c.emitted.last()
 
-        // Report C->A to'g'ri va (dublikat yo'l) flood nusxalari
+        // Report C->A direct and (duplicate path) flood copies
         a.engine.handleIncomingFrame(report)
         a.engine.handleIncomingFrame(report)
 
@@ -377,7 +378,7 @@ class RoutingEngineTest {
         assertEquals(1L, a.engine.stats()["duplicatesDropped"])
     }
 
-    // ---------------- Phase 3: QR pairing tarmoq oqimi ----------------
+    // ---------------- Phase 3: QR pairing network flow ----------------
 
     @Test
     fun qrPairing_scanTriggersPairReq_BauthorizesA_andAck() {
@@ -386,10 +387,10 @@ class RoutingEngineTest {
         val a = makeEngine(ID_A, keyA)
         val b = makeEngine(ID_B, keyB)
 
-        // A B'ning QR'ini skanerladi: B'ni authorized deb biladi (QR ishonch)
+        // A scans B's QR: considers B authorized (QR trust)
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(keyB.publicKey))
 
-        // A PAIR_REQ yuboradi (peer B bizni ham tanisin)
+        // A sends PAIR_REQ (so that peer B also knows us)
         val sent = a.engine.sendPairRequest(ID_B)
         assertTrue(sent)
         val req = a.emitted.last()
@@ -397,17 +398,17 @@ class RoutingEngineTest {
         assertEquals(ID_B, req.targetId)
         assertNotNull(req.senderPublicKey)
 
-        // B qabul: A authorized bo'ladi, PAIR_ACK qaytaradi
+        // B receives: A becomes authorized, sends PAIR_ACK
         b.engine.handleIncomingFrame(req)
         assertNotNull(b.peerStore.authorized(ID_A))
         val ack = b.emitted.last()
         assertEquals(MessageType.PAIR_ACK, ack.type)
         assertEquals(ID_A, ack.targetId)
 
-        // A ACK qabul: pairResult(B, true)
+        // A receives the ACK: pairResult(B, true)
         a.engine.handleIncomingFrame(ack)
         assertEquals(listOf(ID_B to true), a.pairResults)
-        // B ham A'ni authorized deb oldi — ikki yo'nalishli juftlash
+        // B also accepted A as authorized — two-way pairing
         assertNotNull(b.peerStore.authorized(ID_A))
     }
 
@@ -421,19 +422,19 @@ class RoutingEngineTest {
 
         a.peerStore.markAuthorized(ID_C, MeshCrypto.b64(keyC.publicKey))
 
-        // A -> C: PAIR_REQ (B orqali 2-hop)
+        // A -> C: PAIR_REQ (2-hop via B)
         a.engine.sendPairRequest(ID_C)
         val req = a.emitted.last()
         b.engine.handleIncomingFrame(req)
         val relayed = b.emitted.single { it.type == MessageType.RELAY }
 
-        // C qabul -> A authorized + ACK
+        // C receives -> A authorized + ACK
         c.engine.handleIncomingFrame(relayed)
         assertNotNull(c.peerStore.authorized(ID_A))
         val ack = c.emitted.last()
         assertEquals(MessageType.PAIR_ACK, ack.type)
 
-        // ACK B orqali A'ga
+        // ACK to A via B
         b.engine.handleIncomingFrame(ack)
         val ackRelay = b.emitted.filter { it.type == MessageType.RELAY }.last()
         a.engine.handleIncomingFrame(ackRelay)
@@ -447,7 +448,7 @@ class RoutingEngineTest {
         val a = makeEngine(ID_A, MeshCrypto.generateKeyPair())
         val c = makeEngine(ID_C, MeshCrypto.generateKeyPair())
 
-        // A C'ni qidiradi (authorized bo'lmasa ham topish mumkin)
+        // A looks for C (findable even if not authorized)
         val sent = a.engine.sendFindPeer(ID_C)
         assertTrue(sent)
         val find = a.emitted.last()
@@ -455,16 +456,16 @@ class RoutingEngineTest {
         assertEquals(MeshFrame.BROADCAST, find.targetId)
         assertEquals(ID_C, String(find.payload, Charsets.UTF_8))
 
-        // C qabul: o'zi qidirilayotgan — ACK qaytaradi
+        // C receives: it is the one being searched — sends ACK
         c.engine.handleIncomingFrame(find)
         val ack = c.emitted.last()
         assertEquals(MessageType.FIND_PEER_ACK, ack.type)
         assertEquals(ID_A, ack.targetId)
 
-        // A ACK qabul: peerFound(C)
+        // A receives the ACK: peerFound(C)
         a.engine.handleIncomingFrame(ack)
         assertEquals(listOf(ID_C), a.peersFound)
-        // ACK publik key olib keldi — C avtomatik authorized bo'ldi
+        // The ACK carried the public key — C became authorized automatically
         assertNotNull(a.peerStore.authorized(ID_C))
     }
 
@@ -477,16 +478,16 @@ class RoutingEngineTest {
         a.engine.sendFindPeer(ID_C)
         val find = a.emitted.last()
 
-        // B broadcast qidiruvni relay qiladi
+        // B relays the broadcast search
         b.engine.handleIncomingFrame(find)
         val relayed = b.emitted.single { it.type == MessageType.RELAY }
 
-        // C qabul -> ACK A'ga
+        // C receives -> ACK to A
         c.engine.handleIncomingFrame(relayed)
         val ack = c.emitted.last()
         assertEquals(MessageType.FIND_PEER_ACK, ack.type)
 
-        // ACK B orqali A'ga yetadi
+        // ACK reaches A via B
         b.engine.handleIncomingFrame(ack)
         val ackRelay = b.emitted.filter { it.type == MessageType.RELAY }.last()
         a.engine.handleIncomingFrame(ackRelay)
@@ -498,10 +499,10 @@ class RoutingEngineTest {
         val a = makeEngine(ID_A, MeshCrypto.generateKeyPair())
         val b = makeEngine(ID_B, MeshCrypto.generateKeyPair())
 
-        a.engine.sendFindPeer(ID_C) // C tarmoqda yo'q
+        a.engine.sendFindPeer(ID_C) // C is not on the network
         b.engine.handleIncomingFrame(a.emitted.last())
 
-        // B relay qiladi (qidiruv davom etadi), lekin ACK yo'q
+        // B relays (the search continues), but there is no ACK
         assertEquals(1, b.emitted.filter { it.type == MessageType.RELAY }.size)
         assertTrue(b.emitted.none { it.type == MessageType.FIND_PEER_ACK })
         assertTrue(b.peersFound.isEmpty())
@@ -515,7 +516,7 @@ class RoutingEngineTest {
         val find = a.emitted.last()
         a.emitted.clear()
 
-        // Flood orqachali qaytgan o'z qidiruvi qayta relay qilinmaydi
+        // Our own search returning over the flood is not relayed again
         a.engine.handleIncomingFrame(find)
         assertTrue(a.emitted.isEmpty())
         assertEquals(1L, a.engine.stats()["duplicatesDropped"])
@@ -523,7 +524,7 @@ class RoutingEngineTest {
 
     // ---------------- Phase 5: Store-and-forward ----------------
 
-    /** A'ga yetadigan DELIVERY_REPORT frame qurish (to'g'ridan-to'g'ri). */
+    /** Builds a DELIVERY_REPORT frame that reaches A (direct). */
     private fun makeDeliveryReport(fromId: String, forMsgId: String, delivered: Boolean): MeshFrame {
         val idBytes = forMsgId.toByteArray(Charsets.UTF_8)
         val payload = ByteArray(1 + idBytes.size)
@@ -551,18 +552,18 @@ class RoutingEngineTest {
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(keyB.publicKey))
         b.peerStore.markAuthorized(ID_A, MeshCrypto.b64(keyA.publicKey))
 
-        // Xabar yuboriladi -> qatorga tushadi ("queued")
-        val msgId = a.engine.sendText(ID_B, "yetkazilmagan")
+        // Message is sent -> queued
+        val msgId = a.engine.sendText(ID_B, "undelivered")
         assertNotNull(msgId)
         assertEquals(listOf(msgId to "queued"), a.outboxStatus)
         assertEquals(1, a.engine.outboxSnapshot().size)
 
-        // Real oqim: B qabul qiladi va delivery report qaytaradi
+        // Real flow: B receives and sends a delivery report
         b.engine.handleIncomingFrame(a.emitted.last())
         val report = b.emitted.last()
         assertEquals(MessageType.DELIVERY_REPORT, report.type)
 
-        // A report qabul: qatordan o'chadi ("delivered")
+        // A receives the report: removed from the queue ("delivered")
         a.engine.handleIncomingFrame(report)
         assertTrue(a.engine.outboxSnapshot().isEmpty())
         assertEquals(listOf(msgId to "queued", msgId to "delivered"), a.outboxStatus)
@@ -578,22 +579,22 @@ class RoutingEngineTest {
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(keyB.publicKey))
         a.peerStore.markAuthorized(ID_C, MeshCrypto.b64(keyC.publicKey))
 
-        val m1 = a.engine.sendText(ID_B, "uchun B")
-        val m2 = a.engine.sendText(ID_C, "uchun C")
+val m1 = a.engine.sendText(ID_B, "for B")
+        val m2 = a.engine.sendText(ID_C, "for C")
         a.emitted.clear()
-        val queuedCount = a.outboxStatus.size // 2 ta "queued"
+        val queuedCount = a.outboxStatus.size // 2 "queued" entries
 
-        // Faqat B uchun retry -> 1 ta frame
+        // Retry only for B -> 1 frame
         a.engine.retryPending(ID_B)
         assertEquals(1, a.emitted.size)
         assertEquals(ID_B, a.emitted.first().targetId)
 
-        // Rate limit: ikkinchi retry tez orada ishlamaydi (cooldown)
+        // Rate limit: a second retry soon after does not work (cooldown)
         a.emitted.clear()
         a.engine.retryPending(null)
         assertEquals(0, a.emitted.size) // rate-limited, nothing sent
 
-        // Qatordan hech narsa o'chmaydi va status o'zgarmaydi
+        // Nothing is removed from the queue and the status does not change
         assertEquals(2, a.engine.outboxSnapshot().size)
         assertEquals(queuedCount, a.outboxStatus.size)
     }
@@ -603,12 +604,12 @@ class RoutingEngineTest {
         val a = makeEngine(ID_A, MeshCrypto.generateKeyPair())
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(MeshCrypto.generateKeyPair().publicKey))
 
-        // Yangi xabar yuboramiz — msgSeq hozirgi vaqt
-        val msgId = a.engine.sendText(ID_B, "juda eski")
+        // Send a fresh message — msgSeq is the current time
+        val msgId = a.engine.sendText(ID_B, "very old")
         assertEquals(1, a.engine.outboxSnapshot().size)
         a.outboxStatus.clear()
 
-        // expirePending: 24 soat + 1s keyin chaqirsak, frame muddati o'tgan bo'ladi
+        // expirePending: if called after OUTBOX_TTL_MS + 1s, the frame is expired
         val futureNow = System.currentTimeMillis() + RoutingEngine.OUTBOX_TTL_MS + 1000
         a.engine.expirePending(futureNow)
 
@@ -622,23 +623,23 @@ class RoutingEngineTest {
         val a = makeEngine(ID_A, keyA)
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(MeshCrypto.generateKeyPair().publicKey))
 
-        // Yangi xabar yuboramiz
-        val freshId = a.engine.sendText(ID_B, "tiklansin")
+        // Send a fresh message
+        val freshId = a.engine.sendText(ID_B, "restore")
         val snapshot = a.engine.outboxSnapshot()
         assertEquals(1, snapshot.size)
 
-        // Eski frame: msgSeq 24 soatdan eski
+        // Old frame: msgSeq older than 24 hours
         val staleId = "stale-msg-id"
         val staleFrame = snapshot.single().second.copy(
             msgSeq = System.currentTimeMillis() - RoutingEngine.OUTBOX_TTL_MS - 1000
         )
 
-        // Restart simulyatsiyasi — yangi engine, yangi outbox
+        // Restart simulation — fresh engine, fresh outbox
         val restarted = makeEngine(ID_A, keyA)
         restarted.peerStore.markAuthorized(ID_B, MeshCrypto.b64(
             MeshCrypto.generateKeyPair().publicKey))
 
-        // Ikkalasini ham restore qilamiz — faqat fresh saqlanadi
+        // Restore both — only the fresh one is kept
         restarted.engine.restoreOutbox(listOf(
             freshId!! to snapshot.single().second,
             staleId to staleFrame,
@@ -653,11 +654,11 @@ class RoutingEngineTest {
         val a = makeEngine(ID_A, keyA)
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(MeshCrypto.generateKeyPair().publicKey))
 
-        val msgId = a.engine.sendText(ID_B, "tiklansin")
+        val msgId = a.engine.sendText(ID_B, "restore")
         val snapshot = a.engine.outboxSnapshot()
         assertEquals(1, snapshot.size)
 
-        // Restart simulyatsiyasi: yangi engine (bir xil identity) qatorni tiklaydi
+        // Restart simulation: a fresh engine (same identity) restores the queue
         val restarted = makeEngine(ID_A, keyA)
         restarted.peerStore.markAuthorized(ID_B, MeshCrypto.b64(
             MeshCrypto.generateKeyPair().publicKey))
@@ -682,7 +683,7 @@ class RoutingEngineTest {
         assertEquals(MeshFrame.BROADCAST, ping.targetId)
         assertFalse(ping.encrypted)
 
-        // O'z ping'i qaytib kelsa ham dedup tufayli relay qilinmaydi
+        // Even if our own ping returns, dedup prevents relay
         a.emitted.clear()
         a.engine.handleIncomingFrame(ping)
         assertTrue(a.emitted.isEmpty())
@@ -695,25 +696,25 @@ class RoutingEngineTest {
         val a = makeEngine(ID_A, keyA)
         val b = makeEngine(ID_B, keyB)
 
-        // B A'ga pair bo'lgan (A B'ni biladi), lekin B hali ko'rinmagan
+        // B is paired with A (A knows B), but B has not been seen yet
         b.peerStore.markAuthorized(ID_A, MeshCrypto.b64(keyA.publicKey))
 
-        // A ping yuboradi -> B ko'rgan bo'ladi
+        // A sends a ping -> B is seen
         a.engine.sendPing()
         b.engine.handleIncomingFrame(a.emitted.last())
         assertNotNull(b.peerStore.get(ID_A))
         assertTrue(b.peerStore.get(ID_A)!!.lastSeenMs > 0)
 
-        // A'ning o'z ping'i (broadcast) B'da seen bo'lib, relay qilinmaydi
+        // A's own ping (broadcast) is seen by B but not relayed
         assertTrue(b.emitted.isEmpty())
     }
 
     @Test
     fun deliveryReport_forUnknownMsg_doesNotCrash() {
         val a = makeEngine(ID_A, MeshCrypto.generateKeyPair())
-        a.engine.handleIncomingFrame(makeDeliveryReport(ID_B, "noma'lum", true))
+        a.engine.handleIncomingFrame(makeDeliveryReport(ID_B, "unknown", true))
         assertTrue(a.engine.outboxSnapshot().isEmpty())
-        assertEquals(listOf("noma'lum" to true), a.deliveryReports)
+        assertEquals(listOf("unknown" to true), a.deliveryReports)
     }
 
     @Test
@@ -721,11 +722,11 @@ class RoutingEngineTest {
         val a = makeEngine(ID_A, MeshCrypto.generateKeyPair())
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(MeshCrypto.generateKeyPair().publicKey))
 
-        val msgId = a.engine.sendText(ID_B, "sot bo'lmadi")
+        val msgId = a.engine.sendText(ID_B, "not delivered")
         a.engine.handleIncomingFrame(makeDeliveryReport(ID_B, msgId!!, false))
 
         assertTrue(a.engine.outboxSnapshot().isEmpty())
-        assertEquals(listOf(msgId to "queued", msgId to "delivered"), a.outboxStatus) // failed ham qatordan o'chadi
+        assertEquals(listOf(msgId to "queued", msgId to "delivered"), a.outboxStatus) // the failed one is also removed from the queue
         assertEquals(listOf(msgId to false), a.deliveryReports)
     }
 }

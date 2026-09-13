@@ -20,8 +20,8 @@ import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 
 /**
- * RatchetSessionStore testlari: save, load, remove, hasSession, getAllSessionIds.
- * SharedPreferences mock bilan.
+ * RatchetSessionStore tests: save, load, remove, hasSession, getAllSessionIds.
+ * Uses a SharedPreferences mock.
  */
 class RatchetSessionStoreTest {
 

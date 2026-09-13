@@ -23,7 +23,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Phase 4 integratsiya: real HTTP orqali to'liq app distribution zanjiri —
+ * Phase 4 integration: full app distribution chain over real HTTP —
  * server APK share -> client hostApps listing -> fetchFile (chunked,
  * hash-verified) -> onDownloadCompleted metadata -> downloadedPath install.
  */

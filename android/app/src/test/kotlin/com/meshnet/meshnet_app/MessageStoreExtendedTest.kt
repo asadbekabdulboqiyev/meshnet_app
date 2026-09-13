@@ -95,7 +95,7 @@ class MessageStoreExtendedTest {
 
     @Test
     fun addIncoming_unicode_preserved() {
-        val text = "Yangi yil muborak! O'zbekiston"
+        val text = "Happy New Year! Uzbekistan"
         store.addIncoming(MessageStore.IncomingMessage("m1", SENDER, text))
         assertEquals(text, store.loadIncoming()[0].message)
     }

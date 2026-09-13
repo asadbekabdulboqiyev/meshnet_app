@@ -233,8 +233,8 @@ class IdentityStoreStressTest {
 
     @Test
     fun setDisplayName_unicode_preserved() {
-        store.setDisplayName("Yangi foydalanuvchi")
-        assertEquals("Yangi foydalanuvchi", store.displayName())
+        store.setDisplayName("New user")
+        assertEquals("New user", store.displayName())
     }
 
     @Test

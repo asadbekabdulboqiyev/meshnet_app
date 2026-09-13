@@ -16,7 +16,7 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 
 /**
- * GroupStore testlari: SharedPreferences mock bilan.
+ * GroupStore tests: using a SharedPreferences mock.
  * createGroup, getAllGroups, getSymmetricKey, add/remove member,
  * updateGroup, deleteGroup, rotateKey.
  */
@@ -48,11 +48,11 @@ class GroupStoreTest {
             GroupStore.GroupMember(MEMBER_1, "User1", "member"),
         )
 
-        val group = groupStore.createGroup("Test Guruh", members, CREATOR_ID)
+        val group = groupStore.createGroup("Test Group", members, CREATOR_ID)
 
         assertNotNull(group.groupId)
         assertTrue(group.groupId.isNotEmpty())
-        assertEquals("Test Guruh", group.name)
+        assertEquals("Test Group", group.name)
         assertEquals(2, group.members.size)
         assertEquals(CREATOR_ID, group.members[0].deviceId)
         assertEquals("admin", group.members[0].role)
@@ -63,7 +63,7 @@ class GroupStoreTest {
         assertTrue(group.createdAtMs > 0)
         assertEquals(CREATOR_ID, group.createdBy)
 
-        // Symmetric key 32 byte base64 bo'lishi kerak
+        // The symmetric key must be 32 bytes in base64
         val keyBytes = MeshCrypto.unb64(group.symmetricKey)
         assertEquals(32, keyBytes.size)
     }
@@ -72,8 +72,8 @@ class GroupStoreTest {
     fun createGroup_generatesUniqueIdsAndKeys() {
         val members = listOf(GroupStore.GroupMember(CREATOR_ID, "Admin", "admin"))
 
-        val group1 = groupStore.createGroup("Guruh 1", members, CREATOR_ID)
-        val group2 = groupStore.createGroup("Guruh 2", members, CREATOR_ID)
+        val group1 = groupStore.createGroup("Group 1", members, CREATOR_ID)
+        val group2 = groupStore.createGroup("Group 2", members, CREATOR_ID)
 
         assertFalse(group1.groupId == group2.groupId)
         assertFalse(group1.symmetricKey == group2.symmetricKey)
@@ -81,20 +81,20 @@ class GroupStoreTest {
 
     @Test
     fun getAllGroups_returnsCreatedGroups() {
-        // Avval bo'sh
+        // Initially empty
         var all = groupStore.getAllGroups()
         assertTrue(all.isEmpty())
 
-        // 3 ta guruh yaratamiz
-        val g1 = groupStore.createGroup("Birinchi", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
-        val g2 = groupStore.createGroup("Ikkinchi", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
-        val g3 = groupStore.createGroup("Uchinchi", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
+        // Create 3 groups
+        val g1 = groupStore.createGroup("First", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
+        val g2 = groupStore.createGroup("Second", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
+        val g3 = groupStore.createGroup("Third", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
 
         all = groupStore.getAllGroups()
         assertEquals(3, all.size)
 
         val names = all.map { it.name }.toSet()
-        assertEquals(setOf("Birinchi", "Ikkinchi", "Uchinchi"), names)
+        assertEquals(setOf("First", "Second", "Third"), names)
 
         val ids = all.map { it.groupId }.toSet()
         assertEquals(setOf(g1.groupId, g2.groupId, g3.groupId), ids)
@@ -112,7 +112,7 @@ class GroupStoreTest {
         assertNotNull(key)
         assertEquals(32, key!!.size)
 
-        // Key Gruppening symmetricKey si bilan mos kelishi kerak
+        // The key must match the group's symmetricKey
         val expected = MeshCrypto.unb64(group.symmetricKey)
         assertArrayEquals(expected, key)
     }
@@ -126,7 +126,7 @@ class GroupStoreTest {
     @Test
     fun getGroup_returnsGroupById() {
         val created = groupStore.createGroup(
-            "Topiladigan",
+            "Findable",
             listOf(GroupStore.GroupMember(CREATOR_ID, "Admin", "admin")),
             CREATOR_ID,
         )
@@ -134,36 +134,36 @@ class GroupStoreTest {
         val found = groupStore.getGroup(created.groupId)
         assertNotNull(found)
         assertEquals(created.groupId, found!!.groupId)
-        assertEquals("Topiladigan", found.name)
+        assertEquals("Findable", found.name)
     }
 
     @Test
     fun getGroup_returnsNullForUnknownId() {
-        val found = groupStore.getGroup("bunday-yo'q")
+        val found = groupStore.getGroup("no-such-id")
         assertNull(found)
     }
 
     @Test
     fun updateGroup_updatesExistingGroup() {
         val group = groupStore.createGroup(
-            "Eski Nom",
+            "Old Name",
             listOf(GroupStore.GroupMember(CREATOR_ID, "Admin", "admin")),
             CREATOR_ID,
         )
 
-        val updated = group.copy(name = "Yangi Nom")
+        val updated = group.copy(name = "New Name")
         groupStore.updateGroup(updated)
 
         val found = groupStore.getGroup(group.groupId)
         assertNotNull(found)
-        assertEquals("Yangi Nom", found!!.name)
-        assertEquals(group.groupId, found.groupId) // ID o'zgarmasligi kerak
+        assertEquals("New Name", found!!.name)
+        assertEquals(group.groupId, found.groupId) // The ID must not change
     }
 
     @Test
     fun deleteGroup_removesGroup() {
         val group = groupStore.createGroup(
-            "O'chiriladigan",
+            "To be deleted",
             listOf(GroupStore.GroupMember(CREATOR_ID, "Admin", "admin")),
             CREATOR_ID,
         )
@@ -179,19 +179,19 @@ class GroupStoreTest {
     @Test
     fun addMember_addsNewMember() {
         val group = groupStore.createGroup(
-            "A'zo Test",
+            "Member Test",
             listOf(GroupStore.GroupMember(CREATOR_ID, "Admin", "admin")),
             CREATOR_ID,
         )
 
-        val newMember = GroupStore.GroupMember(MEMBER_1, "Yangi A'zo", "member")
+        val newMember = GroupStore.GroupMember(MEMBER_1, "New Member", "member")
         groupStore.addMember(group.groupId, newMember)
 
         val found = groupStore.getGroup(group.groupId)
         assertNotNull(found)
         assertEquals(2, found!!.members.size)
         assertTrue(found.members.any { it.deviceId == MEMBER_1 })
-        assertEquals("Yangi A'zo", found.members.find { it.deviceId == MEMBER_1 }!!.displayName)
+        assertEquals("New Member", found.members.find { it.deviceId == MEMBER_1 }!!.displayName)
     }
 
     @Test
@@ -204,10 +204,10 @@ class GroupStoreTest {
 
         val member = GroupStore.GroupMember(MEMBER_1, "User", "member")
         groupStore.addMember(group.groupId, member)
-        groupStore.addMember(group.groupId, member) // Takror
+        groupStore.addMember(group.groupId, member) // Duplicate
 
         val found = groupStore.getGroup(group.groupId)
-        assertEquals(2, found!!.members.size) // Faqat 2 ta
+        assertEquals(2, found!!.members.size) // Only 2
     }
 
     @Test
@@ -238,7 +238,7 @@ class GroupStoreTest {
             CREATOR_ID,
         )
 
-        groupStore.removeMember(group.groupId, MEMBER_1) // Mavjud emas
+        groupStore.removeMember(group.groupId, MEMBER_1) // Does not exist
 
         val found = groupStore.getGroup(group.groupId)
         assertEquals(1, found!!.members.size)
@@ -284,14 +284,14 @@ class GroupStoreTest {
         assertNotNull(newKey)
         assertEquals(32, newKey!!.size)
 
-        // Eski key bilan mos kelmasligi kerak
+        // Must not match the old key
         assertFalse(oldKey!!.contentEquals(newKey))
 
-        // Yangi key store da saqlangan
+        // The new key is stored
         val storedKey = groupStore.getSymmetricKey(group.groupId)
         assertArrayEquals(newKey, storedKey!!)
 
-        // Guruh obyekti ham yangilanib turishi kerak
+        // The group object must also be updated
         val updatedGroup = groupStore.getGroup(group.groupId)
         assertNotNull(updatedGroup)
         assertEquals(MeshCrypto.b64(newKey), updatedGroup!!.symmetricKey)
@@ -305,19 +305,19 @@ class GroupStoreTest {
 
     @Test
     fun multipleGroups_independent() {
-        val g1 = groupStore.createGroup("Guruh A", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
-        val g2 = groupStore.createGroup("Guruh B", listOf(GroupStore.GroupMember(MEMBER_1, "B", "admin")), MEMBER_1)
+        val g1 = groupStore.createGroup("Group A", listOf(GroupStore.GroupMember(CREATOR_ID, "A", "admin")), CREATOR_ID)
+        val g2 = groupStore.createGroup("Group B", listOf(GroupStore.GroupMember(MEMBER_1, "B", "admin")), MEMBER_1)
 
-        // Har biri o'z a'zolariga ega
+        // Each has its own members
         assertEquals(1, groupStore.getMemberDeviceIds(g1.groupId).size)
         assertEquals(1, groupStore.getMemberDeviceIds(g2.groupId).size)
 
-        // Har biri o'z keyiga ega
+        // Each has its own key
         val k1 = groupStore.getSymmetricKey(g1.groupId)
         val k2 = groupStore.getSymmetricKey(g2.groupId)
         assertFalse(k1!!.contentEquals(k2!!))
 
-        // Biri o'chirilsa digeri qoladi
+        // Deleting one leaves the other
         groupStore.deleteGroup(g1.groupId)
         assertNull(groupStore.getGroup(g1.groupId))
         assertNotNull(groupStore.getGroup(g2.groupId))
@@ -327,7 +327,7 @@ class GroupStoreTest {
     fun groupMemberRoleDefaultsToMember() {
         val group = groupStore.createGroup(
             "Role Test",
-            listOf(GroupStore.GroupMember(MEMBER_1, "Oddiy A'zo")), // role berilmagan
+            listOf(GroupStore.GroupMember(MEMBER_1, "Regular Member")), // no role provided
             CREATOR_ID,
         )
 

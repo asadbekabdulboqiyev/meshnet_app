@@ -199,7 +199,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
     if (mounted) setState(() => _isRecording = true);
   }
 
-  /// Release: yozishni to'xtatadi va yuboradi.
+  /// Release: stops recording and sends the message.
   Future<void> _stopVoiceRecording({bool cancel = false}) async {
     if (!_isRecording) return;
     setState(() => _isRecording = false);

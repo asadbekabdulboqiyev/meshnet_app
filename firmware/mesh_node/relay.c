@@ -39,7 +39,7 @@ int relay_decide(relay_ctx_t *ctx, const mesh_frame_t *f, uint32_t now_ms, int *
         return 0;
     }
 
-    /* Eski yozuvlarni tozalash (massiv kichik — chiziqli tekshirish kifoya) */
+    /* Evict expired entries (the array is small — a linear check suffices) */
     relay_evict_expired(ctx, now_ms);
 
     if (relay_find(ctx, f->sender, f->msg_seq) >= 0) {
@@ -47,7 +47,7 @@ int relay_decide(relay_ctx_t *ctx, const mesh_frame_t *f, uint32_t now_ms, int *
         return 0;
     }
 
-    /* Yangi ko'ringan (sender,seq) qayd etamiz — round-robin almashinuvi */
+    /* Record a newly seen (sender,seq) — round-robin replacement */
     relay_seen_entry_t *e;
     if (ctx->count < RELAY_SEEN_SIZE) {
         e = &ctx->entries[ctx->count++];

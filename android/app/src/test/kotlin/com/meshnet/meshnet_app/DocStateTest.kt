@@ -9,8 +9,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * DocState testlari: LWW merge qoidalasi (rev + senderId tie-break),
- * hajm limiti va LNDOC snapshot roundtrip.
+ * DocState tests: LWW merge rule (rev + senderId tie-break),
+ * size limit, and LNDOC snapshot roundtrip.
  */
 class DocStateTest {
 
@@ -86,14 +86,14 @@ class DocStateTest {
 
     @Test
     fun serializeParseRoundtrip() {
-        val doc = DocState("shared", "Rasmda yozuv")
-        doc.editLocal(3, "dev-a", "Salom dunyo\nIkkinchi qator", 12345)
+        val doc = DocState("shared", "Picture note")
+        doc.editLocal(3, "dev-a", "Hello world\nSecond line", 12345)
         val parsed = DocState.parse(doc.serialize())
         assertNotNull(parsed)
         assertEquals("shared", parsed?.docId)
-        assertEquals("Rasmda yozuv", parsed?.title)
+        assertEquals("Picture note", parsed?.title)
         assertEquals(3, parsed?.rev)
-        assertEquals("Salom dunyo\nIkkinchi qator", parsed?.text)
+        assertEquals("Hello world\nSecond line", parsed?.text)
         assertEquals("dev-a", parsed?.lastEditorId)
         assertEquals(12345L, parsed?.updatedAtMs)
     }
@@ -110,7 +110,7 @@ class DocStateTest {
     @Test
     fun unicodeSurvivesBase64() {
         val doc = DocState("d", "t")
-        doc.editLocal(1, "a", "emoji 🚀 va o'zbekcha matn", 0)
-        assertEquals("emoji 🚀 va o'zbekcha matn", DocState.parse(doc.serialize())?.text)
+        doc.editLocal(1, "a", "emoji 🚀 and uzbek text", 0)
+        assertEquals("emoji 🚀 and uzbek text", DocState.parse(doc.serialize())?.text)
     }
 }

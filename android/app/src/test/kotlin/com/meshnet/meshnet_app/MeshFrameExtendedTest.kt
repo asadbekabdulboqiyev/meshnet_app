@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * MeshFrame kengaytirilgan testlari: edge cases, barcha message types,
+ * MeshFrame extended tests: edge cases, all message types,
  * header format, broadcast, valid/invalid input, UUID handling.
  */
 class MeshFrameExtendedTest {

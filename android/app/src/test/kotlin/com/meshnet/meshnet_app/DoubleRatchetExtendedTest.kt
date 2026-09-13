@@ -11,7 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * DoubleRatchet kengaytirilgan testlari: edge cases, empty messages,
+ * DoubleRatchet extended tests: edge cases, empty messages,
  * large messages, key properties, concurrent operations.
  */
 class DoubleRatchetExtendedTest {
@@ -74,7 +74,7 @@ class DoubleRatchetExtendedTest {
     @Test
     fun encryptDecrypt_unicodeMessage() {
         val (alice, bob) = createAliceAndBob()
-        val text = "Yangi yil muborak bo'lsin!"
+        val text = "Happy New Year!"
         val ct = alice.encrypt(text.toByteArray(Charsets.UTF_8))
         val dt = bob.decrypt(ct)
         assertNotNull(dt)

@@ -9,10 +9,10 @@ extern "C" {
 #endif
 
 /*
- * MeshNet wire format (MESH_PROTOCOL.md §3, MeshFrame.kt bilan sinxron).
- * Barcha ko'p baytli maydonlar BIG_ENDIAN.
+ * MeshNet wire format (MESH_PROTOCOL.md §3, synchronized with MeshFrame.kt).
+ * All multi-byte fields are BIG_ENDIAN.
  *
- * | ofset | maydon           | hajm |
+ * | offset | field           | size |
  * |-------|------------------|------|
  * | 0-1   | magic 0x4D 0x4E  | 2    |
  * | 2     | version 0x01     | 1    |
@@ -23,10 +23,10 @@ extern "C" {
  * | 7-22  | sender_id        | 16   |
  * | 23-38 | target_id        | 16   |
  * | 39-46 | msg_seq          | 8    |
- * | 47-78 | sender_pubkey    | 32   | (faqat PAIR_REQ/ACK, FIND_PEER_ACK)
+ * | 47-78 | sender_pubkey    | 32   | (only PAIR_REQ/ACK, FIND_PEER_ACK)
  * | ?     | payload          | n    |
  *
- * Broadcast target = 16 bayt nol.
+ * Broadcast target = 16 zero bytes.
  */
 
 #define MESH_HEADER_SIZE     47
@@ -35,7 +35,7 @@ extern "C" {
 #define MESH_VERSION         0x01
 #define MESH_MAGIC1          0x4D
 #define MESH_MAGIC2          0x4E
-/* Bitta BLE write'da maksimal frame (BleTransport.MAX_PAYLOAD) */
+/* Maximum frame in a single BLE write (BleTransport.MAX_PAYLOAD) */
 #define MESH_MAX_FRAME       244
 
 /* MessageType (MeshFrame.kt / MessageType.kt) */
@@ -48,7 +48,7 @@ extern "C" {
 #define MSG_FIND_PEER        0x07
 #define MSG_FIND_PEER_ACK    0x08
 
-/* Framelar turi bo'yicha pubkey bor bo'lishi mumkin */
+/* Frame types that may carry a pubkey */
 #define MSG_HAS_PUBKEY(t) \
     ((t) == MSG_PAIR_REQ || (t) == MSG_PAIR_ACK || (t) == MSG_FIND_PEER_ACK)
 
@@ -56,26 +56,26 @@ typedef struct {
     uint8_t type;
     uint8_t hop_limit;
     uint8_t ttl;
-    uint8_t flags;          /* bit0 = payload shifrlangan */
+    uint8_t flags;          /* bit0 = payload encrypted */
     uint8_t sender[MESH_ID_BYTES];
-    uint8_t target[MESH_ID_BYTES]; /* barchasi nol = broadcast */
+    uint8_t target[MESH_ID_BYTES]; /* all zeros = broadcast */
     uint64_t msg_seq;       /* epoch-ms (Long, big-endian) */
-    const uint8_t *pubkey;  /* MESH_PUBKEY_LEN — faqat MSG_HAS_PUBKEY turlari */
+    const uint8_t *pubkey;  /* MESH_PUBKEY_LEN — only for MSG_HAS_PUBKEY types */
     size_t pubkey_len;
-    const uint8_t *payload; /* bufer ichidagi ko'rsatkich */
+    const uint8_t *payload; /* pointer inside the buffer */
     size_t payload_len;
 } mesh_frame_t;
 
-/* Frame ni buferdan parse qiladi. 1 = ok, 0 = yaroqsiz (magic/hajm/turi). */
+/* Parses a frame from the buffer. 1 = ok, 0 = invalid (magic/size/type). */
 int mesh_frame_parse(const uint8_t *buf, size_t len, mesh_frame_t *out);
 
-/* Frame ni buferga yozadi. Qaytarish: yozilgan baytlar (0 = sig'madi). */
+/* Writes a frame to the buffer. Returns: bytes written (0 = doesn't fit). */
 size_t mesh_frame_encode(const mesh_frame_t *f, uint8_t *buf, size_t cap);
 
 int mesh_frame_id_equals(const uint8_t a[MESH_ID_BYTES], const uint8_t b[MESH_ID_BYTES]);
 int mesh_frame_is_broadcast(const uint8_t id[MESH_ID_BYTES]);
 
-/* ESP32 MAC dan barqaror node deviceId (16 bayt):
+/* Stable node deviceId (16 bytes) derived from the ESP32 MAC:
  *   [0..1]='m''n', [2..7]=MAC, [12..15]={0x4D,0x4E,0x0E,0x01} */
 void mesh_node_generate_id(uint8_t out[MESH_ID_BYTES]);
 

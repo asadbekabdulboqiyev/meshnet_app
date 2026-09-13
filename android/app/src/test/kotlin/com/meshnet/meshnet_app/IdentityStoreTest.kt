@@ -13,8 +13,8 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 
 /**
- * IdentityStore testlari: init, deviceId, privateKey, publicKey, displayName, setDisplayName.
- * MeshDatabase mock bilan.
+ * IdentityStore tests: init, deviceId, privateKey, publicKey, displayName, setDisplayName.
+ * Uses a MeshDatabase mock.
  */
 class IdentityStoreTest {
 
@@ -232,8 +232,8 @@ class IdentityStoreTest {
 
     @Test
     fun setDisplayName_specialCharacters() {
-        store.setDisplayName("O'tkan chiziq")
-        assertEquals("O'tkan chiziq", store.displayName())
+        store.setDisplayName("Apostrophe")
+        assertEquals("Apostrophe", store.displayName())
     }
 
     @Test
@@ -245,8 +245,8 @@ class IdentityStoreTest {
 
     @Test
     fun setDisplayName_unicode() {
-        store.setDisplayName("Yangi foydalanuvchi")
-        assertEquals("Yangi foydalanuvchi", store.displayName())
+        store.setDisplayName("New user")
+        assertEquals("New user", store.displayName())
     }
 
     // =================== Persistence ===================

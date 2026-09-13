@@ -114,7 +114,7 @@ class _InternetGatewayViewState extends ConsumerState<InternetGatewayView> {
                             Text(
                               _running
                                   ? 'Proxy port: $_port — CONNECT & HTTP forward'
-                                  : 'O\'z internetingizni mesh tarmoqqa oching',
+                                  : 'Expose your own internet to the mesh',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),

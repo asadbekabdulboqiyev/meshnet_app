@@ -20,8 +20,8 @@ import org.junit.rules.TemporaryFolder
 import org.mockito.Mockito.mock
 
 /**
- * Phase 3 integratsiya testlari: real HTTP server orqali collab snapshot
- * endpointlari — kech qo'shilgan peer to'liq holatni oladi.
+ * Phase 3 integration tests: collab snapshot endpoints over a real HTTP
+ * server — a late-joining peer receives the full state.
  */
 class CollabHttpIntegrationTest {
 
@@ -96,7 +96,7 @@ class CollabHttpIntegrationTest {
 
     @Test
     fun pollsSnapshotServedOverHttp() {
-        val poll = service.collab.createPollLocal("Tayyormisiz?", listOf("ha", "yo'q"))
+        val poll = service.collab.createPollLocal("Ready?", listOf("yes", "no"))
         assertNotNull(poll)
         service.collab.voteLocal(poll!!.pollId, 0)
         val text = http.getText(hostIp, port, "/collab/polls")

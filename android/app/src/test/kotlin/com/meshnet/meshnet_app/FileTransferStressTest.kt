@@ -223,7 +223,7 @@ class FileTransferStressTest {
 
     @Test
     fun fullRoundTrip_assembleFileFromChunks() {
-        val original = "Salom bu test fayli. Unda turli belgilar mavjud: abc123!@#".toByteArray(Charsets.UTF_8)
+        val original = "Hello this is a test file. It contains various characters: abc123!@#".toByteArray(Charsets.UTF_8)
         val (transferId, startFrame) = manager.startTransfer("roundtrip.txt", original.size.toLong(), "text/plain", SENDER_ID)
         manager.handleFileStart(SENDER_ID, startFrame.payload)
         val chunks = manager.generateChunkFrames(transferId, original, SENDER_ID, RECEIVER_ID, false)

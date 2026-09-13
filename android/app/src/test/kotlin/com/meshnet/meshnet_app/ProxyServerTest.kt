@@ -17,9 +17,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Phase 5 integratsiya testlari: real ProxyServer + real target HTTP server,
- * hammasi loopback'da. CONNECT tunnel, plain HTTP forward, health endpoint,
- * access control va tunnel limit tekshiruvi.
+ * Phase 5 integration tests: real ProxyServer + real target HTTP server,
+ * all on loopback. Verifies CONNECT tunneling, plain HTTP forwarding, the
+ * health endpoint, access control, and the tunnel limit.
  */
 class ProxyServerTest {
 

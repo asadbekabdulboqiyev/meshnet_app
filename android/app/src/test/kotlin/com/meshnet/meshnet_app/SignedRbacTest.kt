@@ -9,8 +9,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * SignedRbac testlari: RBAC qarori imzo bilan ta'minlangan.
- * Rol berilganda imzo qilinadi, keyin imzo tekshiriladi.
+ * SignedRbac tests: RBAC decisions are secured by a cryptographic signature.
+ * When a role is granted, it is signed and then the signature is verified.
  */
 class SignedRbacTest {
 

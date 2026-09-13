@@ -141,9 +141,9 @@ void main() {
           case 'editDoc':
             return {'docId': methodCall.arguments['docId'], 'rev': 1};
           case 'getDoc':
-            return {'docId': methodCall.arguments['docId'], 'title': 'Team Notes', 'rev': 2, 'text': 'salom'};
+            return {'docId': methodCall.arguments['docId'], 'title': 'Team Notes', 'rev': 2, 'text': 'hello'};
           case 'createPoll':
-            return {'pollId': 'p1', 'question': methodCall.arguments['question'], 'options': ['ha', "yo'q"]};
+            return {'pollId': 'p1', 'question': methodCall.arguments['question'], 'options': ['yes', 'no']};
           case 'votePoll':
             return {'accepted': true};
           case 'getPolls':
@@ -151,7 +151,7 @@ void main() {
               {
                 'pollId': 'p1',
                 'question': 'Tayyormisiz?',
-                'options': ['ha', "yo'q"],
+                'options': ['yes', 'no'],
                 'tally': {0: 2},
                 'totalVotes': 2,
               },
@@ -502,7 +502,7 @@ void main() {
     test('createDoc and editDoc roundtrip', () async {
       final doc = await service.createDoc('notes', 'Team Notes');
       expect(doc!['docId'], 'notes');
-      final rev = await service.editDoc('notes', 'salom');
+      final rev = await service.editDoc('notes', 'hello');
       expect(rev, 1);
       expect(log.last.method, 'editDoc');
     });
@@ -510,11 +510,11 @@ void main() {
     test('getDoc returns document', () async {
       final doc = await service.getDoc('notes');
       expect(doc!['rev'], 2);
-      expect(doc['text'], 'salom');
+      expect(doc['text'], 'hello');
     });
 
     test('createPoll returns poll map', () async {
-      final poll = await service.createPoll('Savol?', ['ha', "yo'q"]);
+      final poll = await service.createPoll('Question?', ['yes', 'no']);
       expect(poll!['pollId'], 'p1');
       expect(poll['options'], hasLength(2));
     });

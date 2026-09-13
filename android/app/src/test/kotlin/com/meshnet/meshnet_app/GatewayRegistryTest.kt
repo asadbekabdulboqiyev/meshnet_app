@@ -9,7 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Phase 5 unit testlari: gateway presence registry — learn, refresh,
+ * Phase 5 unit tests: gateway presence registry — learn, refresh,
  * TTL expiry, stale announce handling, payload parsing.
  */
 class GatewayRegistryTest {

@@ -23,9 +23,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Phase 5 integratsiya: gateway announce -> registry learning -> health
- * probe zanjiri. Real ProxyServer loopback'da, frame'lar RoutingEngine
- * listener orqali ushlanadi (mesh simulyatsiyasi).
+ * Phase 5 integration: gateway announce -> registry learning -> health
+ * probe chain. Real ProxyServer on loopback; frames are captured through a
+ * RoutingEngine listener (mesh simulation).
  */
 class GatewayIntegrationTest {
 

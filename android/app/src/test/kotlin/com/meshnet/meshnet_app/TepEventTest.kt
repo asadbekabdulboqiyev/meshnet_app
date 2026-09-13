@@ -16,7 +16,7 @@ import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * TEP (Teno Event Protocol) mesh integrasiya testlari.
+ * TEP (Teno Event Protocol) mesh integration tests.
  * Spec: spec/transport-mesh.md — MessageType TEP_EVENT (41/0x29) broadcast relay.
  */
 class TepEventTest {
@@ -160,7 +160,7 @@ class TepEventTest {
         )
         assertNotNull(receiver.decodeReceived(frame.payload))
         assertNull(receiver.decodeReceived(frame.payload))
-        // mesh frame roundtrip orqali yuborilgan takroriy TEP (bir xil eventId) ham dedupe
+        // duplicate TEP delivered via a mesh frame roundtrip (same eventId) is also deduped
         val transported = MeshFrame.decode(MeshFrame.encode(frame))!!
         assertArrayEquals(frame.payload, transported.payload)
         assertNull(receiver.decodeReceived(transported.payload))

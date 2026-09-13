@@ -42,19 +42,19 @@ class MessageStoreTest {
 
     @Test
     fun addIncoming_addsMessageToInbox() {
-        val msg = MessageStore.IncomingMessage("msg-1", SENDER, "Salom!")
+        val msg = MessageStore.IncomingMessage("msg-1", SENDER, "Hello!")
         store.addIncoming(msg)
         val messages = store.loadIncoming()
         assertEquals(1, messages.size)
         assertEquals("msg-1", messages[0].messageId)
         assertEquals(SENDER, messages[0].fromDeviceId)
-        assertEquals("Salom!", messages[0].message)
+        assertEquals("Hello!", messages[0].message)
     }
 
     @Test
     fun addIncoming_newMessageGoesToTop() {
-        store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, "Birinchi"))
-        store.addIncoming(MessageStore.IncomingMessage("msg-2", SENDER, "Ikkinchi"))
+        store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, "First"))
+        store.addIncoming(MessageStore.IncomingMessage("msg-2", SENDER, "Second"))
         val messages = store.loadIncoming()
         assertEquals(2, messages.size)
         assertEquals("msg-2", messages[0].messageId)
@@ -64,20 +64,20 @@ class MessageStoreTest {
     @Test
     fun addIncoming_enforces200MessageCap() {
         for (i in 1..210) {
-            store.addIncoming(MessageStore.IncomingMessage("msg-$i", SENDER, "Xabar $i"))
+            store.addIncoming(MessageStore.IncomingMessage("msg-$i", SENDER, "Message $i"))
         }
         val messages = store.loadIncoming()
         assertEquals(200, messages.size)
-        // Yangi xabarlar saqlanishi kerak (201..210)
+        // New messages must be kept (201..210)
         assertEquals("msg-210", messages[0].messageId)
-        // Eski xabarlar tashlab ketilgan (1..10)
+        // Old messages have been dropped (1..10)
         assertTrue(messages.none { it.messageId == "msg-1" })
     }
 
     @Test
     fun addIncoming_exactly200Messages_allSaved() {
         for (i in 1..200) {
-            store.addIncoming(MessageStore.IncomingMessage("msg-$i", SENDER, "Xabar $i"))
+            store.addIncoming(MessageStore.IncomingMessage("msg-$i", SENDER, "Message $i"))
         }
         val messages = store.loadIncoming()
         assertEquals(200, messages.size)
@@ -86,7 +86,7 @@ class MessageStoreTest {
     @Test
     fun addIncoming_201stMessage_removesOldest() {
         for (i in 1..201) {
-            store.addIncoming(MessageStore.IncomingMessage("msg-$i", SENDER, "Xabar $i"))
+            store.addIncoming(MessageStore.IncomingMessage("msg-$i", SENDER, "Message $i"))
         }
         val messages = store.loadIncoming()
         assertEquals(200, messages.size)
@@ -98,7 +98,7 @@ class MessageStoreTest {
     @Test
     fun addIncoming_preservesReceivedAtMs() {
         val ts = 1700000000000L
-        val msg = MessageStore.IncomingMessage("msg-1", SENDER, "Salom", ts)
+        val msg = MessageStore.IncomingMessage("msg-1", SENDER, "Hello", ts)
         store.addIncoming(msg)
         val loaded = store.loadIncoming()
         assertEquals(ts, loaded[0].receivedAtMs)
@@ -107,7 +107,7 @@ class MessageStoreTest {
     @Test
     fun addIncoming_defaultReceivedAtMs_isReasonable() {
         val before = System.currentTimeMillis()
-        store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, "Salom"))
+        store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, "Hello"))
         val after = System.currentTimeMillis()
         val ts = store.loadIncoming()[0].receivedAtMs
         assertTrue(ts >= before - 1000)
@@ -131,14 +131,14 @@ class MessageStoreTest {
 
     @Test
     fun addIncoming_specialCharacters_works() {
-        val text = "O'zbekiston & maxsus belgilar <tag> \"quote\" \\slash"
+        val text = "Uzbekistan & special chars <tag> \"quote\" \\slash"
         store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, text))
         assertEquals(text, store.loadIncoming()[0].message)
     }
 
     @Test
     fun addIncoming_unicode_works() {
-        val text = "Salom dunyo! Yangi yil muborak"
+        val text = "Hello world! Happy new year"
         store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, text))
         assertEquals(text, store.loadIncoming()[0].message)
     }
@@ -148,7 +148,7 @@ class MessageStoreTest {
     @Test
     fun incomingMessage_defaultReceivedAtMs_isReasonable() {
         val before = System.currentTimeMillis()
-        val msg = MessageStore.IncomingMessage("msg-1", SENDER, "Salom")
+        val msg = MessageStore.IncomingMessage("msg-1", SENDER, "Hello")
         val after = System.currentTimeMillis()
         assertTrue(msg.receivedAtMs >= before - 1000)
         assertTrue(msg.receivedAtMs <= after + 1000)
@@ -258,10 +258,10 @@ class MessageStoreTest {
 
     @Test
     fun addIncoming_persistsViaDatabase() {
-        store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, "Salom"))
+        store.addIncoming(MessageStore.IncomingMessage("msg-1", SENDER, "Hello"))
         val messages = store.loadIncoming()
         assertEquals(1, messages.size)
-        assertEquals("Salom", messages[0].message)
+        assertEquals("Hello", messages[0].message)
     }
 
     @Test

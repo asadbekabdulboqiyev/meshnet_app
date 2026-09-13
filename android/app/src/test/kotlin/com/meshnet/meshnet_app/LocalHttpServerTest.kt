@@ -11,8 +11,8 @@ import java.io.InputStreamReader
 import java.net.Socket
 
 /**
- * LocalHttpServer testlari: real socket orqali HTTP/1.1 so'rovlar,
- * endpoint routing, 404, katta body drain.
+ * LocalHttpServer tests: HTTP/1.1 requests over real sockets,
+ * endpoint routing, 404, and large body draining.
  */
 class LocalHttpServerTest {
 

@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * MeshCrypto kengaytirilgan testlari: edge cases, empty input, large input,
+ * MeshCrypto extended tests: edge cases, empty input, large input,
  * b64 edge cases, multiple operations, key properties.
  */
 class MeshCryptoExtendedTest {
@@ -128,7 +128,7 @@ class MeshCryptoExtendedTest {
         val a = MeshCrypto.generateKeyPair()
         val b = MeshCrypto.generateKeyPair()
         val secret = MeshCrypto.computeSharedSecret(a.privateKey, b.publicKey)
-        val text = "Salom dunyo! Yangi yil muborak"
+        val text = "Hello world! Happy New Year"
         val plain = text.toByteArray(Charsets.UTF_8)
         val ct = MeshCrypto.encrypt(secret, plain)
         val dt = MeshCrypto.decrypt(secret, ct)

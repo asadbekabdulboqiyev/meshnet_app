@@ -9,13 +9,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * PollManager testlari: poll yaratish, bir ovozchi qoidasi (oxirgi ovoz
- * hisoblanadi), tally va LNPOLLS snapshot roundtrip.
+ * PollManager tests: poll creation, one-vote-per-device rule (the latest
+ * vote wins), tally, and LNPOLLS snapshot roundtrip.
  */
 class PollManagerTest {
 
-    private fun poll(id: String = "p1", options: List<String> = listOf("ha", "yoq")) =
-        PollManager.Poll(id, "dev-a", 100, "Ketamizmi?", options)
+    private fun poll(id: String = "p1", options: List<String> = listOf("yes", "no")) =
+        PollManager.Poll(id, "dev-a", 100, "Shall we go?", options)
 
     // ---------------- Creation ----------------
 
@@ -23,7 +23,7 @@ class PollManagerTest {
     fun createPollAcceptsValid() {
         val pm = PollManager()
         assertTrue(pm.createPoll(poll()))
-        assertEquals("Ketamizmi?", pm.getPoll("p1")?.question)
+        assertEquals("Shall we go?", pm.getPoll("p1")?.question)
     }
 
     @Test
@@ -93,7 +93,7 @@ class PollManagerTest {
         val pm = PollManager()
         pm.createPoll(poll())
         pm.createPoll(
-            PollManager.Poll("lunch", "dev-b", 200, "Nima yeymiz?", listOf("osh", "lagmon", "shashlik")),
+            PollManager.Poll("lunch", "dev-b", 200, "What shall we eat?", listOf("plov", "lagman", "shashlik")),
         )
         pm.recordVote("p1", "voter-1", 1)
         pm.recordVote("lunch", "voter-2", 2)

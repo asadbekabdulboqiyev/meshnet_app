@@ -20,8 +20,8 @@ import org.junit.rules.TemporaryFolder
 import org.mockito.Mockito.mock
 
 /**
- * LocalNetService testlari: DNS frame qayta ishlash (announce/query/response),
- * hostname sanitizatsiya, RoutingEngine integratsiyasi (emitted frames).
+ * LocalNetService tests: DNS frame processing (announce/query/response),
+ * hostname sanitization, RoutingEngine integration (emitted frames).
  */
 class LocalNetServiceTest {
 
@@ -109,7 +109,7 @@ class LocalNetServiceTest {
         assertEquals("asadbek-dev", LocalNetService.hostnameFromDisplayName("Asadbek Dev"))
         assertEquals("node", LocalNetService.hostnameFromDisplayName("!!!"))
         assertEquals("a-b", LocalNetService.hostnameFromDisplayName("A B"))
-        assertEquals("odam_ismi".replace("_", "-"), LocalNetService.hostnameFromDisplayName("Odam_Ismi"))
+        assertEquals("user_name".replace("_", "-"), LocalNetService.hostnameFromDisplayName("User_Name"))
     }
 
     // ---------------- Start / stop ----------------

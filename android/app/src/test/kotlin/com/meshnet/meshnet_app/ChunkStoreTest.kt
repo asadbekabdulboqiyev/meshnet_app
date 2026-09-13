@@ -14,8 +14,8 @@ import org.junit.rules.TemporaryFolder
 import kotlin.random.Random
 
 /**
- * ChunkStore testlari: content-addressed saqlash, dedup, integrity tekshiruv,
- * diskda qolish (persistence), buzuq chunk aniqlash.
+ * ChunkStore tests: content-addressed storage, dedup, integrity verification,
+ * on-disk persistence, corrupted-chunk detection.
  */
 class ChunkStoreTest {
 

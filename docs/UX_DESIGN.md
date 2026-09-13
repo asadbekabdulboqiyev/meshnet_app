@@ -1,142 +1,145 @@
-# MeshNet — UI/UX Dizayn Tizimi
+# MeshNet — UI/UX Design System
 
-> **Versiya:** 1.0  
-> **Sana:** 2026-08-08  
-> **Manzil:** Android (Flutter)  
-> **Til:** O'zbek (uz)  
-> **Muallif:** TechCorp — Dizayn Bo'limi
+> **Version:** 1.0  
+> **Date:** 2026-08-08  
+> **Target:** Android (Flutter)  
+> **Language:** English (en)  
+> **Author:** TechCorp — Design Team
 
 ---
 
-## Mundarija
+## Table of Contents
 
-1. [Produkt Xarakteri](#1-produkt-xarakteri)
-2. [Rang Palitrasi](#2-rang-palitrasi)
-3. [Tipografiya](#3-tipografiya)
-4. [Ekranlar — Skrin-by-Skrin](#4-ekranlar)
-5. [Komponentlar Kutubxonasi](#5-komponentlar)
-6. [Holat Belgilari (State Icons)](#6-holat-belgilari)
-7. [Micro-Interactions va UX Kinetikasi](#7-micro-interactions)
+1. [Product Character](#1-product-character)
+2. [Color Palette](#2-color-palette)
+3. [Typography](#3-typography)
+4. [Screens — Screen-by-Screen](#4-screens)
+5. [Component Library](#5-component-library)
+6. [Status Icons (State Icons)](#6-status-icons)
+7. [Micro-Interactions and UX Motion](#7-micro-interactions)
 8. [Empty States](#8-empty-states)
-9. [Responsive Qoidalar](#9-responsive)
+9. [Responsive Rules](#9-responsive-rules)
 10. [Accessibility (WCAG 2.1 AA)](#10-accessibility)
-11. [Dizayn Tokenlari (JSON)](#11-dizayn-tokenlari)
-12. [Frontend Handoff — Flutter Specifikatsiya](#12-handoff)
+11. [Design Tokens (JSON)](#11-design-tokens)
+12. [Frontend Handoff — Flutter Specification](#12-handoff)
 13. [QA Checklist](#13-qa-checklist)
 
 ---
 
-## 1. Produkt Xarakteri
+## 1. Product Character
 
-### 1.1 Nima bu?
+### 1.1 What is this?
 
-MeshNet — tabiiy ofatlar, internet blokirovkasi va bosim sharoitlarida **offline P2P mesh tarmoq** orqali aloqa qilish ilovasi. Internet kerak emas. Bluetooth, Wi-Fi Direct va boshqa lokal protokollar orqali qurilmalar bir-biriga ulanadi.
+MeshNet — an app for communicating over an **offline P2P mesh network** in
+natural disasters, internet blackouts, and oppressive situations. No internet
+required. Devices connect to each other via Bluetooth, Wi-Fi Direct, and other
+local protocols.
 
-### 1.2 Foydalanuvchi Profili
+### 1.2 User Profile
 
-| Xususiyat | Tavsif |
+| Feature | Description |
 |-----------|--------|
-| **Yosh** | 18–55 |
-| **Holat** | Favqulodda, stress ostida, tez yechim kerak |
-| **Texnik daraja** | O'rtacha — oddiy foydalanuvchi |
-| **Muhit** | Ko'cha, bino, yerosti, yomg'ir, tunning qorong'usi |
+| **Age** | 18–55 |
+| **State** | Emergency, under stress, needs a quick solution |
+| **Technical level** | Average — ordinary user |
+| **Environment** | Street, building, underground, rain, darkness of night |
 
-### 1.3 Dizayn Tamoyillari
+### 1.3 Design Principles
 
-| Tamoyil | Izoh |
+| Principle | Notes |
 |---------|------|
-| **Sodda** | Minimal element, maksimal ma'no. Stress ostida 3 soniyada tushunarli |
-| **Ishonchli** | Harakat natijasi aniq ko'rinadi. Xabar yetib borganini foydalanuvchi his qilishi kerak |
-| **Tez** | Zero-friction. Har bir ekran 2-3 qadamdan oshmasin |
-| **Offline-first** | Tarmoq yo'q bo'lsa ham ilova to'liq ishlaydi, faqat mesh ulanish kutadi |
-| **Xavfsiz** | Shifrlangan. Banner har doim ko'rinadi. Foydalanuvchi ishonchda bo'lsin |
+| **Simple** | Minimal elements, maximum meaning. Understood in 3 seconds under stress |
+| **Reliable** | The result of an action is clearly visible. The user must feel that the message has been delivered |
+| **Fast** | Zero-friction. Each screen stays within 2-3 steps |
+| **Offline-first** | The app works fully even with no network; only the mesh connection waits |
+| **Secure** | Encrypted. The banner is always visible. The user stays confident |
 
 ### 1.4 Emotional Design
 
-- **Stress ostida** — ranglar tinchlantiruvchi (teal), lekin ogohlantirish aniq (orange)
-- **Yolg'izlik hissi** — mesh tarmoq vizualizatsiyasi "sen yolg'iz emassan" degan his beradi
-- **Ishonch** — shifrlangan banner, yetkazish statusi, xavfsizlik belgilari doimiy ko'rinadi
+- **Under stress** — soothing colors (teal), but clear warnings (orange)
+- **Feeling of isolation** — the mesh network visualization conveys "you are not alone"
+- **Confidence** — the encrypted banner, delivery status, and security indicators are always visible
 
 ---
 
-## 2. Rang Palitrasi
+## 2. Color Palette
 
-### 2.1 Asosiy Palitra (Dark Mode — Primary)
+### 2.1 Primary Palette (Dark Mode — Primary)
 
-| Token | Rang | HEX | RGB | RGBA | Ishtiroki |
+| Token | Color | HEX | RGB | RGBA | Role |
 |-------|------|-----|-----|------|-----------|
-| `primary-900` | Deep Teal | `#0D3B3E` | 13, 59, 62 | rgba(13,59,62,1) | Orqa fon, header |
-| `primary-700` | Teal | `#1A6B6F` | 26, 107, 111 | rgba(26,107,111,1) | Asosiy tugmalar, aktiv holat |
-| `primary-500` | Medium Teal | `#2A8F94` | 42, 143, 148 | rgba(42,143,148,1) | Link, sekundar elementlar |
+| `primary-900` | Deep Teal | `#0D3B3E` | 13, 59, 62 | rgba(13,59,62,1) | Background, header |
+| `primary-700` | Teal | `#1A6B6F` | 26, 107, 111 | rgba(26,107,111,1) | Primary buttons, active state |
+| `primary-500` | Medium Teal | `#2A8F94` | 42, 143, 148 | rgba(42,143,148,1) | Links, secondary elements |
 | `primary-300` | Light Teal | `#5CC4C8` | 92, 196, 200 | rgba(92,196,200,1) | Hover, border, divider |
-| `primary-100` | Pale Teal | `#D4F0F1` | 212, 240, 241 | rgba(212,240,241,1) | Badge fon, tooltip |
+| `primary-100` | Pale Teal | `#D4F0F1` | 212, 240, 241 | rgba(212,240,241,1) | Badge background, tooltip |
 
-### 2.2 Signal Ranglari (Accent)
+### 2.2 Signal Colors (Accent)
 
-| Token | Rang | HEX | Ishtiroki |
+| Token | Color | HEX | Role |
 |-------|------|-----|-----------|
-| `accent-500` | Signal Orange | `#FF6B35` | Ogohlantirish, live badge, favqulodda tugma |
-| `accent-400` | Light Orange | `#FF8C5A` | Hover holati |
-| `accent-600` | Dark Orange | `#E55A2B` | Press holati |
+| `accent-500` | Signal Orange | `#FF6B35` | Warnings, live badge, emergency button |
+| `accent-400` | Light Orange | `#FF8C5A` | Hover state |
+| `accent-600` | Dark Orange | `#E55A2B` | Pressed state |
 
-### 2.3 Coverage Rangi (Yashil)
+### 2.3 Coverage Color (Green)
 
-| Token | Rang | HEX | Ishtiroki |
+| Token | Color | HEX | Role |
 |-------|------|-----|-----------|
-| `success-500` | Signal Green | `#22C55E` | Online, yetkazildi, coverage zone |
+| `success-500` | Signal Green | `#22C55E` | Online, delivered, coverage zone |
 | `success-400` | Light Green | `#4ADE80` | Hover, badge |
-| `success-600` | Dark Green | `#16A34A` | Press holati |
+| `success-600` | Dark Green | `#16A34A` | Pressed state |
 
-### 2.4 Status Ranglari
+### 2.4 Status Colors
 
-| Token | Rang | HEX | Ishtiroki |
+| Token | Color | HEX | Role |
 |-------|------|-----|-----------|
-| `error-500` | Red | `#EF4444` | Xatolik, yetib bormadi, danger |
+| `error-500` | Red | `#EF4444` | Error, not delivered, danger |
 | `error-400` | Light Red | `#F87171` | Error badge |
-| `warning-500` | Amber | `#F59E0B` | Ogohlantirish, zaif aloqa |
+| `warning-500` | Amber | `#F59E0B` | Warning, weak signal |
 | `warning-400` | Light Amber | `#FBBF24` | Warning badge |
-| `info-500` | Blue | `#3B82F6` | Ma'lumot, routing status |
+| `info-500` | Blue | `#3B82F6` | Information, routing status |
 | `info-400` | Light Blue | `#60A5FA` | Info badge |
 
-### 2.5 Neutral Ranglar
+### 2.5 Neutral Colors
 
-| Token | Rang | HEX | Ishtiroki |
+| Token | Color | HEX | Role |
 |-------|------|-----|-----------|
-| `neutral-950` | Near Black | `#0A0A0A` | Matn (dark mode) |
-| `neutral-900` | Dark | `#171717` | Asosiy matn |
-| `neutral-800` | | `#262626` | Card fon (dark mode) |
-| `neutral-700` | | `#404040` | Ikkinchi darajali matn |
+| `neutral-950` | Near Black | `#0A0A0A` | Text (dark mode) |
+| `neutral-900` | Dark | `#171717` | Primary text |
+| `neutral-800` | | `#262626` | Card background (dark mode) |
+| `neutral-700` | | `#404040` | Secondary text |
 | `neutral-500` | | `#737373` | Placeholder, disabled |
 | `neutral-400` | | `#A3A3A3` | Border, divider |
 | `neutral-300` | | `#D4D4D4` | Light border |
 | `neutral-200` | | `#E5E5E5` | Light card bg |
-| `neutral-100` | | `#F5F5F5` | Off-white fon (light mode) |
-| `neutral-50` | Off-White | `#FAFAFA` | Pastki qism, bottom sheet |
+| `neutral-100` | | `#F5F5F5` | Off-white background (light mode) |
+| `neutral-50` | Off-White | `#FAFAFA` | Bottom sheet |
 
-### 2.6 Tema Almashtirish
+### 2.6 Theme Switching
 
 ```
 Dark Mode (primary):  Background #0D3B3E → Card #1A2A2B → Text #F5F5F5
 Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 ```
 
-**Default tema:** Dark mode. Foydalanuvchi sozlamalardan almashtira oladi.
+**Default theme:** dark mode. The user can switch it in settings.
 
 ---
 
-## 3. Tipografiya
+## 3. Typography
 
-### 3.1 Shriftlar
+### 3.1 Fonts
 
-| Shrift | Type | Google Fonts | Qo'llanilishi |
+| Font | Type | Google Fonts | Usage |
 |--------|------|--------------|---------------|
-| **Inter** | Sans-serif | `fonts.google.com/specimen/Inter` | UI matnlari, tugmalar, sarlavhalar |
-| **JetBrains Mono** | Monospace | `fonts.google.com/specimen/JetBrains+Mono` | IP manzillar, haskesh, MAC, texnik matn |
-| **Roboto Mono** | Monospace | `fonts.google.com/specimen/Roboto+Mono` | Alternativ (agar JetBrains Muto mos kelmasa) |
+| **Inter** | Sans-serif | `fonts.google.com/specimen/Inter` | UI text, buttons, headings |
+| **JetBrains Mono** | Monospace | `fonts.google.com/specimen/JetBrains+Mono` | IP addresses, hashes, MAC, technical text |
+| **Roboto Mono** | Monospace | `fonts.google.com/specimen/Roboto+Mono` | Alternative (if JetBrains Mono is not a fit) |
 
-### 3.2 Tipografik Iyerarxiya
+### 3.2 Typographic Hierarchy
 
-| Qiymat | Dark Mode | Light Mode | Weight | Size | Line Height | Tracking |
+| Value | Dark Mode | Light Mode | Weight | Size | Line Height | Tracking |
 |--------|-----------|------------|--------|------|-------------|----------|
 | `display-large` | `#F5F5F5` | `#0A0A0A` | 700 (Bold) | 32sp | 40sp | -0.5 |
 | `display-medium` | `#F5F5F5` | `#0A0A0A` | 700 (Bold) | 28sp | 36sp | -0.25 |
@@ -155,110 +158,110 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 | `label-small` | `#A3A3A3` | `#404040` | 500 (Medium) | 10sp | 12sp | 0.5 |
 | `code` | `#5CC4C8` | `#1A6B6F` | 400 (Regular) | 13sp | 20sp | 0 |
 
-### 3.3 Qoidalari
+### 3.3 Rules
 
-- **Maksimum qator uzunligi:** 60 ta belgi (chat xabarlari — 45 belgi)
-- **Spacing:** Sarlavha va matn orasida 8sp, matn va matn orasida 4sp
+- **Maximum line length:** 60 characters (chat messages — 45 characters)
+- **Spacing:** 8sp between heading and text, 4sp between text and text
 - **Contrast ratio:** WCAG AA — 4.5:1 (body), 3:1 (large text)
-- **Monospace:** Faqat texnik ma'lumotlar uchun (IP, MAC, hash). Oddiy matnda ishlatmaslik
+- **Monospace:** only for technical data (IP, MAC, hash). Do not use in regular text
 
 ---
 
-## 4. Ekranlar — Skrin-by-Skrin
+## 4. Screens — Screen-by-Screen
 
-### 4.1 Home / Network Ekranı
+### 4.1 Home / Network Screen
 
-**Maqsad:** Foydalanuvchi mesh tarmoq holatini 1 soniyada tushunishi kerak.
+**Goal:** the user must understand the mesh network status in 1 second.
 
 #### Layout (top → bottom):
 
 ```
 ┌─────────────────────────────────────┐
 │  🟢 MeshNet              ⚙️       │  ← Top App Bar
-│  Tarmoq: Faol | 3 ta ulanish       │
+│  Network: Active | 3 connections   │
 ├─────────────────────────────────────┤
 │                                     │
 │      ╭───╮     ╭───╮               │
 │      │ 📱│─ ─ ─│ 📱│               │  ← Mesh Visual
-│      ╰─┬─╯     ╰─┬─╯               │     (bulut turindagi
-│        │    📱    │                 │      hub'lar,
-│        │─ ─ │ ─ ─│                 │      tutarich chiziqlar)
+│      ╰─┬─╯     ╰─┬─╯               │     (cloud-like
+│        │    📱    │                 │      hubs,
+│        │─ ─ │ ─ ─│                 │      connecting lines)
 │        │    │     │                 │
 │      ╭─┴─╮       ╰─╮               │
 │      │ 📱│    ╭───╮ │               │
 │      ╰───╯    │ 📱│ │               │
 │               ╰───╯ │               │
 │                                     │
-│  👤 Sen (Sen): #A7F3D0             │  ← O'zim belgilanishi
-│  📍 0.3 km radius                  │     (yashil doira)
+│  👤 You (self): #A7F3D0            │  ← Self marker
+│  📍 0.3 km radius                  │     (green circle)
 ├─────────────────────────────────────┤
-│  📡 Tarmoq Ma'lumotlari            │
-│  ├─ Faol peer'lar: 3               │
-│  ├─ Routing xop: 2                 │
-│  ├─ Signal kuchi: ⚡ Yuqori        │
-│  └─ Oxirgi yangilanish: 2 soniya   │
+│  📡 Network Info                    │
+│  ├─ Active peers: 3                │
+│  ├─ Routing hops: 2                │
+│  ├─ Signal strength: ⚡ High        │
+│  └─ Last update: 2 seconds         │
 ├─────────────────────────────────────┤
-│  [ 📡 Ulash ]  [ 💬 Xabar ]       │  ← Primary Actions
+│  [ 📡 Share ]  [ 💬 Message ]      │  ← Primary Actions
 ├─────────────────────────────────────┤
 │  🏠    📋    💬    ⚙️              │  ← Bottom Navigation
-│  Tarmoq Kontaktlar Xabarlar Sozlash│
+│  Network Contacts Messages Settings │
 └─────────────────────────────────────┘
 ```
 
-#### Komponentlar tafsiloti:
+#### Component details:
 
-| Element | Tavsif | Animatsiya |
+| Element | Description | Animation |
 |---------|--------|------------|
-| **Mesh Visual** | Yumaloq node'lar + dashed chiziqlar | Pulsatsiya (har 3 soniyada) |
-| **Node rangi** | O'zim = yashil, online = teal, offline = gray | Fade in/out |
-| **Chiziq** | Faol aloqa = solid teal, zaif = dashed amber, yo'q = gray | Stroke animation |
-| **"Sen" marker** | Yashil doira + label | Gentle glow |
-| **Tarmoq ma'lumotlari** | Card ichida, open state | Slide up |
+| **Mesh Visual** | Rounded nodes + dashed lines | Pulse (every 3 seconds) |
+| **Node colors** | Self = green, online = teal, offline = gray | Fade in/out |
+| **Line** | Active link = solid teal, weak = dashed amber, none = gray | Stroke animation |
+| **"You" marker** | Green circle + label | Gentle glow |
+| **Network info** | Inside a card, open state | Slide up |
 
-#### Interaktivlik:
+#### Interactivity:
 
-- Node'ga bosil → profil qisqa (name + signal)
-- Mesh vizualni zoom qilish mumkin (pinch-to-zoom)
-- Pull-to-refresh → tarmoq qayta skanerlash
+- Tap a node → brief profile (name + signal)
+- Pinch-to-zoom on the mesh visual
+- Pull-to-refresh → rescan the network
 
 ---
 
-### 4.2 Contacts List (Kontaktlar)
+### 4.2 Contacts List
 
-**Maqsad:** Offline/online holatini bir qarashda aniqlash.
+**Goal:** determine offline/online status at a glance.
 
 #### Layout:
 
 ```
 ┌─────────────────────────────────────┐
-│  📋 Kontaktlar           🔍  ➕   │  ← Top Bar
+│  📋 Contacts            🔍  ➕     │  ← Top Bar
 ├─────────────────────────────────────┤
-│  Qidirish...                       │  ← Search bar
+│  Search...                         │  ← Search bar
 ├─────────────────────────────────────┤
 │  🟢 ONLINE (2)                     │  ← Section header
 ├─────────────────────────────────────┤
 │  ┌─────────────────────────────┐   │
 │  │ 🟢  Karimov Bobur          │   │  ← Online contact
 │  │     📡 0.1 km | Signal ⚡   │   │     (teal left border)
-│  │     [ 💬 Yozish ] [ 📞 ]   │   │
+│  │     [ 💬 Write ] [ 📞 ]    │   │
 │  └─────────────────────────────┘   │
 │  ┌─────────────────────────────┐   │
 │  │ 🟢  Raximova Nilufar       │   │
 │  │     📡 0.3 km | Signal ⚡   │   │
-│  │     [ 💬 Yozish ] [ 📞 ]   │   │
+│  │     [ 💬 Write ] [ 📞 ]    │   │
 │  └─────────────────────────────┘   │
 ├─────────────────────────────────────┤
 │  ⚫ OFFLINE (5)                    │  ← Section header
 ├─────────────────────────────────────┤
 │  ┌─────────────────────────────┐   │
 │  │ ⚫  Toshmatov Sardor       │   │  ← Offline contact
-│  │     📡 | Oxirgi: 15 daqiqa  │   │     (gray left border)
-│  │     [ 📞 Qo'ng'iroq ]      │   │
+│  │     📡 | Last seen: 15 min  │   │     (gray left border)
+│  │     [ 📞 Call ]            │   │
 │  └─────────────────────────────┘   │
 │  ┌─────────────────────────────┐   │
 │  │ 🔵  Valiyev Jamshid        │   │  ← Routing (signal relay)
 │  │     📡 0.5 km | Signal 💪   │   │     (blue left border)
-│  │     [ 💬 Yozish ] [ 📞 ]   │   │
+│  │     [ 💬 Write ] [ 📞 ]    │   │
 │  └─────────────────────────────┘   │
 │  ...                               │
 ├─────────────────────────────────────┤
@@ -266,27 +269,27 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 └─────────────────────────────────────┘
 ```
 
-#### Kontakt Kartasi Tarkibiy Qismlari:
+#### Contact Card Components:
 
-| Element | Tavsif |
+| Element | Description |
 |---------|--------|
-| **Avatar** | 44dp radius yumaloq, default initial bilan |
-| **Holat doti** | 12dp, chap tomonda overloap. Green=online, Gray=offline, Blue=routing |
-| **Ism** | `title-medium`, 14sp |
-| **Masofa/SIGNAL** | `body-small`, 12sp. Masofa yo'q bo'lsa "Noma'lum" |
-| **Amal tugmalari** | 40dp height, icon + text. Primary = teal, Ghost = outline |
+| **Avatar** | 44dp rounded, with the default initial |
+| **Status dot** | 12dp, overlaid on the left. Green=online, Gray=offline, Blue=routing |
+| **Name** | `title-medium`, 14sp |
+| **Distance/Signal** | `body-small`, 12sp. "Unknown" if no distance |
+| **Action buttons** | 40dp height, icon + text. Primary = teal, Ghost = outline |
 
-#### Interaktivlik:
+#### Interactivity:
 
-- Swipe left → o'chirish/gizlash
-- Long press → profil batafsil
-- Har bir kontakt offline/online banneri bilan
+- Swipe left → delete/hide
+- Long press → detailed profile
+- Each contact carries an offline/online banner
 
 ---
 
-### 4.3 Chat Ekranı
+### 4.3 Chat Screen
 
-**Maqsad:** Shifrlangan xabar almashish. Xabar yetib borganini aniq ko'rish kerak.
+**Goal:** encrypted messaging. Message delivery must be clearly visible.
 
 #### Layout:
 
@@ -295,85 +298,85 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 │  ←  Karimov Bobur     🟢 Online   │  ← Header
 │     📡 0.1 km | Signal ⚡          │
 ├─────────────────────────────────────┤
-│  🔒 Bu suhbat E2E shifrlangan     │  ← Encryption Banner
-│  │  Xabarlar faqat siz va          │     (pastel teal fon,
-│  │  qabul qiluvchi ko'ra oladi     │      teal text)
+│  🔒 This chat is E2E encrypted     │  ← Encryption Banner
+│  │  Messages are only visible to   │     (pastel teal bg,
+│  │  you and the recipient          │      teal text)
 │  🔒                                │
 ├─────────────────────────────────────┤
 │                                     │
 │  14:32                             │  ← Timestamp
 │  ┌─────────────────────────────┐   │
-│  │ Assalomu alaykum!          │   │  ← incoming (teal bg,
-│  │ Siz qayerdasiz?            │   │     white text)
-│  └─────────────────────────────┘   │
+│  │ Salam! Where are you?      │   │  ← incoming (teal bg,
+│  └─────────────────────────────┘   │     white text)
 │              14:33                 │
 │        ┌───────────────────────┐   │
-│        │ Va alaykum assalom!   │   │  ← outgoing (primary-700 bg,
-│        │ Men Markaziy ko'chada │   │     white text)
+│        │ Wa alaikum assalam!   │   │  ← outgoing (primary-700 bg,
+│        │ I'm on Central street │   │     white text)
 │        └───────────────────────┘   │
 │                        ✓✓          │  ← delivered (teal)
 │                                     │
 │  14:35                             │
 │  ┌─────────────────────────────┐   │
-│  │ 🗺️ Joylashuv: Markaziy    │   │  ← location card
-│  │    ko'cha, 45-uy            │   │
-│  │    [ 📍 Xaritada ko'rish ]  │   │
+│  │ 🗺️ Location: Central       │   │  ← location card
+│  │    street, house 45         │   │
+│  │    [ 📍 View on map ]       │   │
 │  └─────────────────────────────┘   │
 │                                     │
 │  14:36                             │
 │        ┌───────────────────────┐   │
-│        │ Xabar yetib bordimi?  │   │
+│        │ Did the message       │   │
+│        │ arrive?               │   │
 │        └───────────────────────┘   │
 │                     ⏳              │  ← pending (gray, pulsing)
 │                                     │
 ├─────────────────────────────────────┤
 │  ┌─────────────────────────┐  📎  │  ← Input bar
-│  │ Xabar yozing...         │  🎤  │
+│  │ Write a message...      │  🎤  │
 │  └─────────────────────────┘  ➤   │
 └─────────────────────────────────────┘
 ```
 
-#### Xabar Statuslari:
+#### Message Statuses:
 
-| Status | Belgi | Tavsif |
+| Status | Indicator | Description |
 |--------|-------|--------|
-| **Pending** | ⏳ (pulsing) | Yuborilmoqda. Mesh tarmoq qidirilmoqda |
-| **Sent** | ✓ (gray) | Yaqin node'ga yetdi |
-| **Delivered** | ✓✓ (teal) | Qabul qiluvchiga yetdi |
-| **Read** | ✓✓ (green) | O'qildi |
-| **Failed** | ⚠️ (red) | Yetib bormadi. Qayta yuborish tugmasi |
-| **Routing** | 🔄 (blue) | Boshqa node orqali yo'naltirilmoqda |
+| **Pending** | ⏳ (pulsing) | Sending. Searching the mesh network |
+| **Sent** | ✓ (gray) | Reached a nearby node |
+| **Delivered** | ✓✓ (teal) | Reached the recipient |
+| **Read** | ✓✓ (green) | Read |
+| **Failed** | ⚠️ (red) | Not delivered. Resend button |
+| **Routing** | 🔄 (blue) | Being routed through another node |
 
-#### Shifrlangan Banner:
+#### Encryption Banner:
 
-- Har doim chat boshida ko'rinadi
+- Always visible at the top of the chat
 - Background: `primary-100` (10% opacity) — dark mode: `#1A2A2B`
-- Matn: `primary-500`
-- Ikon: 🔒 yoki SVG lock icon
-- Dismiss qilinmaydi — doimiy ko'rinadi
+- Text: `primary-500`
+- Icon: 🔒 or an SVG lock icon
+- Not dismissible — always visible
 
-#### Interaktivlik:
+#### Interactivity:
 
-- Send tugmasi bosilganda → tugma icon'i swipe animation (yozuv chizig'i → paper plane)
+- Send button pressed → swipe animation on the button icon (pencil line → paper plane)
 - Message long press → Reply, Copy, Delete
-- Swipe down → timestamp'lar ko'rinadi
-- Typing indicator → 3 nuqta pulsation
+- Swipe down → timestamps appear
+- Typing indicator → 3-dot pulsation
 
 ---
 
-### 4.4 Pairing (Juftlashtirish) Ekranı
+### 4.4 Pairing Screen
 
-**Maqsad:** QR orqali qurilmalarni ulash. Oddiy va tez.
+**Goal:** connect devices via QR. Simple and fast.
 
-#### 4.4.1 QR Ko'rsatish (Meni boshqa qurilmaga qo'shish)
+#### 4.4.1 Show QR (add your device to another device)
 
 ```
 ┌─────────────────────────────────────┐
-│  ←  Juftlash          ❌           │
+│  ←  Pairing            ❌          │
 ├─────────────────────────────────────┤
 │                                     │
-│  📱 Seni qurilmani boshqa          │
-│  qurilmalarga ko'rsat              │
+│  📱 Show your device to other      │
+│  devices                           │
 │                                     │
 │  ┌─────────────────────────────┐   │
 │  │                             │   │
@@ -385,28 +388,28 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 │  │    MeshNet Pairing QR       │   │
 │  └─────────────────────────────┘   │
 │                                     │
-│  📡 Signal: ⚡ Kuchli              │
-│  ⏱️ Muddati: 5:00 daqiqa          │
-│  🔒 Faqat 1 marta ishlatiladi     │
+│  📡 Signal: ⚡ Strong              │
+│  ⏱️ Expires: 5:00 minutes          │
+│  🔒 Single-use only                │
 │                                     │
-│  [ 🔄 Yangilash ]                  │  ← QR refresh
+│  [ 🔄 Refresh ]                    │  ← QR refresh
 │                                     │
 ├─────────────────────────────────────┤
-│  💡 Maslahat:                      │
-│  • QR ni boshqa qurilmaga ko'rsating│
-│  • Bluetooth yoqilgan bo'lsin       │
-│  • 2 metr yaqinlikda turing        │
+│  💡 Tip:                           │
+│  • Show the QR to the other device │
+│  • Make sure Bluetooth is on       │
+│  • Stand within 2 meters          │
 └─────────────────────────────────────┘
 ```
 
-#### 4.4.2 QR Skanerlash (Boshqa qurilmani qo'shish)
+#### 4.4.2 Scan QR (add another device)
 
 ```
 ┌─────────────────────────────────────┐
-│  ←  Juftlash          ❌           │
+│  ←  Pairing            ❌          │
 ├─────────────────────────────────────┤
 │                                     │
-│  📷 QR kodni skanerlash            │
+│  📷 Scan a QR code                 │
 │                                     │
 │  ┌─────────────────────────────┐   │
 │  │ ┌───────────────────────┐   │   │  ← Camera viewfinder
@@ -420,45 +423,45 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 │  │ └───────────────────────┘   │   │
 │  └─────────────────────────────┘   │
 │                                     │
-│  📍 QR kodni markazga joylashtiring │
+│  📍 Center the QR code             │
 │                                     │
-│  ⏳ Kutish...                       │  ← Scanning indicator
+│  ⏳ Waiting...                     │  ← Scanning indicator
 │                                     │
-│  [ 💡 Qo'lda kiritish ]            │  ← Manual fallback
+│  [ 💡 Manual entry ]               │  ← Manual fallback
 └─────────────────────────────────────┘
 ```
 
-#### 4.4.3 Pairing Natijasi
+#### 4.4.3 Pairing Result
 
 ```
 ┌─────────────────────────────────────┐
 │                                     │
 │         ✅                          │  ← Success state
 │                                     │
-│    Muvaffaqiyatli ulandi!          │
+│    Paired successfully!            │
 │                                     │
 │  ┌─────────────────────────────┐   │
 │  │ 📱 Karimov Bobur's Phone   │   │  ← Paired device card
-│  │ 📡 Signal: ⚡ Yuqori        │   │
-│  │ 🔒 Shifrlangan: Ha         │   │
-│  │ ⏱️ Ulangan: 14:35          │   │
+│  │ 📡 Signal: ⚡ High          │   │
+│  │ 🔒 Encrypted: Yes          │   │
+│  │ ⏱️ Connected: 14:35        │   │
 │  └─────────────────────────────┘   │
 │                                     │
-│  [ ✅ Tushundim, davom etish ]    │
+│  [ ✅ Got it, continue ]           │
 │                                     │
 │  ┌─────────────────────────────┐   │
-│  │ ⚠️ Xatolik yuz berdi!      │   │  ← Error state
+│  │ ⚠️ An error occurred!       │   │  ← Error state
 │  │                              │   │
-│  │ Sabab: Bluetooth o'chirilgan │   │
-│  │ [ 🔧 Bluetooth yoqish ]    │   │
-│  │ [ 🔄 Qayta urinish ]       │   │
+│  │ Reason: Bluetooth is off    │   │
+│  │ [ 🔧 Turn on Bluetooth ]    │   │
+│  │ [ 🔄 Retry ]                │   │
 │  └─────────────────────────────┘   │
 │                                     │
 │  ┌─────────────────────────────┐   │
-│  │ ⏱️ Vaqt tugadi!            │   │  ← Timeout state
+│  │ ⏱️ Time expired!            │   │  ← Timeout state
 │  │                              │   │
-│  │ QR kod muddati tugadi       │   │
-│  │ [ 🔄 Yangi QR yaratish ]   │   │
+│  │ The QR code has expired     │   │
+│  │ [ 🔄 Generate new QR ]      │   │
 │  └─────────────────────────────┘   │
 │                                     │
 └─────────────────────────────────────┘
@@ -466,63 +469,63 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 
 ---
 
-### 4.5 Settings (Sozlamalar) Ekranı
+### 4.5 Settings Screen
 
 ```
 ┌─────────────────────────────────────┐
-│  ⚙️  Sozlamalar                     │
+│  ⚙️  Settings                       │
 ├─────────────────────────────────────┤
 │                                     │
-│  👤 PROFIL                          │
-│  ├─ Isming: Karimov Bobur          │
-│  ├─ Status: Yordam kerak            │
-│  └─ Avatar: [📷 O'zgartirish]      │
+│  👤 PROFILE                         │
+│  ├─ Name: Karimov Bobur            │
+│  ├─ Status: Need help              │
+│  └─ Avatar: [📷 Change]            │
 │                                     │
-│  📡 TARMOQ                          │
+│  📡 NETWORK                         │
 │  ├─ Auto-start: [🟢 ON]            │
-│  │  (Ilova ochilganda avto ulanish) │
-│  ├─ Transport ustuvorligi:          │
+│  │  (Auto-connect when the app opens)│
+│  ├─ Transport priority:            │
 │  │  1. Bluetooth ← drag to reorder  │
 │  │  2. Wi-Fi Direct                 │
 │  │  3. Hotspot                      │
 │  ├─ Mesh radius: ◀━●━━▶ 0.5 km    │
-│  └─ Max peer: [5]                  │
+│  └─ Max peers: [5]                 │
 │                                     │
-│  🔒 XAVFSIZLIK                      │
-│  ├─ Shifrlash: E2E (Always On)     │
+│  🔒 SECURITY                        │
+│  ├─ Encryption: E2E (Always On)     │
 │  ├─ Key management: [Device-local]  │
-│  └─ Auto-delete: [7 kun]           │
+│  └─ Auto-delete: [7 days]          │
 │                                     │
-│  🔔 BILDIRISHLAR                    │
-│  ├─ Xabar ovozi: [🟢 ON]           │
+│  🔔 NOTIFICATIONS                   │
+│  ├─ Message sound: [🟢 ON]         │
 │  ├─ Vibration: [🟢 ON]             │
-│  └─ Faqat favqulodda: [⚫ OFF]    │
+│  └─ Emergency only: [⚫ OFF]        │
 │                                     │
-│  🎨 INTERFEYS                       │
-│  ├─ Tema: [🌙 Dark ○ Light]       │
-│  ├─ Katta matn: [⚫ OFF]          │
-│  └─ Til: [O'zbek 🇺🇿]             │
+│  🎨 INTERFACE                       │
+│  ├─ Theme: [🌙 Dark ○ Light]       │
+│  ├─ Large text: [⚫ OFF]            │
+│  └─ Language: [English 🇬🇧]         │
 │                                     │
-│  ℹ️  ABOUT                           │
-│  ├─ Versiya: 1.0.0                 │
+│  ℹ️  ABOUT                          │
+│  ├─ Version: 1.0.0                 │
 │  ├─ Licenses                       │
-│  └️ Privacy Policy                  │
+│  └─ Privacy Policy                 │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
-#### Transport Ustuvorligi — Drag & Drop:
+#### Transport Priority — Drag & Drop:
 
-- Har bir transport qatorini siljitib tartiblashtirish
-- Siljish paytida: 4dp elevation, subtle shadow
-- Qo'yilganda: bounce animation (150ms)
-- Faol transport: teal dot indicator
+- Drag each transport row to reorder
+- While dragging: 4dp elevation, subtle shadow
+- On drop: bounce animation (150ms)
+- Active transport: teal dot indicator
 
 ---
 
-### 4.6 Onboarding / Intro (3 Bosqich)
+### 4.6 Onboarding (3 Steps)
 
-#### Bosqich 1: "Nima bu?"
+#### Step 1: "What is this?"
 
 ```
 ┌─────────────────────────────────────┐
@@ -531,26 +534,24 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 │       / | \                         │     (mesh network
 │      📱─📱─📱                      │      animated Lottie)
 │                                     │
-│  MeshNet — Sizning                   │
-│  shaxsiy mesh tarmog'ingiz         │
+│  MeshNet — Your own                 │
+│  personal mesh network              │
 │                                     │
-│  Internet kerak emas. Bluetooth     │
-│  va Wi-Fi Direct orqali atrofdagi   │
-│  qurilmalar bilan to'g'ridan-       │
-│  to'g'ri aloqa qiling.             │
+│  No internet needed. Communicate    │
+│  directly with nearby devices       │
+│  via Bluetooth and Wi-Fi Direct.   │
 │                                     │
-│  Tabiiy ofatlar, blokirovkalar     │
-│  vafavqulodda holatlar uchun        │
-│  yaratilgan.                        │
+│  Built for natural disasters,       │
+│  blackouts and emergencies.        │
 │                                     │
 │              ● ○ ○                  │  ← Page indicator
 │                                     │
-│  [ Keyingi ➤ ]                     │
-│  [ O'tkazib yuborish ]             │
+│  [ Next ➤ ]                        │
+│  [ Skip ]                          │
 └─────────────────────────────────────┘
 ```
 
-#### Bosqich 2: "Qanday ishlaydi?"
+#### Step 2: "How does it work?"
 
 ```
 ┌─────────────────────────────────────┐
@@ -559,24 +560,24 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 │        ↕️                           │     (devices pairing
 │         📱                          │      animation)
 │                                     │
-│  1️⃣ Ilovani oching                  │
-│  2️⃣ QR kodni skanerlang            │
-│  3️⃣ Avtomatik ravishda ulaning     │
+│  1️⃣ Open the app                    │
+│  2️⃣ Scan the QR code               │
+│  3️⃣ Connect automatically          │
 │                                     │
 │  ┌─────────────────────────────┐   │
-│  │  ✅ Bluetooth zarur          │   │  ← Requirements list
-│  │  ✅ Wi-Fi Direct zarur      │   │
-│  │  ✅ Bluetooth ruxsati kerak  │   │
+│  │  ✅ Bluetooth required      │   │  ← Requirements list
+│  │  ✅ Wi-Fi Direct required   │   │
+│  │  ✅ Bluetooth permission    │   │
 │  └─────────────────────────────┘   │
 │                                     │
 │              ○ ● ○                  │
 │                                     │
-│  [ Keyingi ➤ ]                     │
-│  [ Orqaga ]                        │
+│  [ Next ➤ ]                        │
+│  [ Back ]                          │
 └─────────────────────────────────────┘
 ```
 
-#### Bosqich 3: "Tayyor!"
+#### Step 3: "Ready!"
 
 ```
 ┌─────────────────────────────────────┐
@@ -585,47 +586,46 @@ Light Mode (secondary): Background #FAFAFA → Card #FFFFFF → Text #0A0A0A
 │       / | \                         │     (success/checkmark
 │      📱─📱─📱                      │      animation)
 │                                     │
-│  Hamma tayyor!                      │
+│  Everything's ready!                │
 │                                     │
-│  Endi siz offline holda ham        │
-│  atrofdagilar bilan aloqa           │
-│  qila olasiz.                       │
+│  Now you can communicate with       │
+│  those around you even offline.    │
 │                                     │
-│  💡 Maslahat:                       │
-│  Birinchi qadam — yaqiningizdagi   │
-│  odam bilan juftlang!              │
+│  💡 Tip:                           │
+│  The first step — pair with         │
+│  someone near you!                 │
 │                                     │
 │              ○ ○ ●                  │
 │                                     │
-│  [ 🚀 Boshlash ]                   │
-│  [ Orqaga ]                        │
+│  [ 🚀 Start ]                      │
+│  [ Back ]                          │
 └─────────────────────────────────────┘
 ```
 
-#### Onboarding Animatsiyalari:
+#### Onboarding Animations:
 
-- Har bir sahifaga o'tish → horizontal page transition (300ms, ease-out)
-- Lottie animatsiyalar → loop, 2s cycle
-- "Boshlash" tugmasi → scale-up bounce (0.9 → 1.05 → 1.0, 400ms)
+- Page transition → horizontal page transition (300ms, ease-out)
+- Lottie animations → loop, 2s cycle
+- "Start" button → scale-up bounce (0.9 → 1.05 → 1.0, 400ms)
 
 ---
 
-## 5. Komponentlar Kutubxonasi
+## 5. Component Library
 
-### 5.1 Card (Karta)
+### 5.1 Card
 
-#### Variantlar:
+#### Variants:
 
-| Variant | Tavsif | Use Case |
+| Variant | Description | Use Case |
 |---------|--------|----------|
-| `card-default` | Neutral-800 fon, 12dp radius, 1dp border | Oddiy kontent |
-| `card-elevated` | Neutral-800 + 2dp elevation | Asosiy kontent, tap qilinadigan |
-| `card-outlined` | Transparent fon, 1dp border | Ikkinchi darajali |
-| `card-success` | Success-500 left border | Muvaffaqiyat holati |
-| `card-warning` | Warning-500 left border | Ogohlantirish |
-| `card-error` | Error-500 left border | Xatolik |
+| `card-default` | Neutral-800 background, 12dp radius, 1dp border | Regular content |
+| `card-elevated` | Neutral-800 + 2dp elevation | Primary content, tappable |
+| `card-outlined` | Transparent background, 1dp border | Secondary |
+| `card-success` | Success-500 left border | Success state |
+| `card-warning` | Warning-500 left border | Warning |
+| `card-error` | Error-500 left border | Error |
 
-#### Spetsifikatsiya:
+#### Specification:
 
 ```
 Padding: 16dp (horizontal), 16dp (vertical)
@@ -635,7 +635,7 @@ Elevation: 0dp (default), 2dp (elevated)
 Shadow: rgba(0,0,0,0.15) 0px 2px 8px (elevated only)
 ```
 
-### 5.2 Button (Tugmalar)
+### 5.2 Buttons
 
 #### 5.2.1 Primary Button
 
@@ -649,13 +649,13 @@ Font: Inter SemiBold 14sp
 Icon: 20dp, left-aligned
 ```
 
-**Holatlar:**
+**States:**
 - Default → primary-700
 - Hover/Focus → primary-500
 - Pressed → primary-900
 - Disabled → neutral-700, text neutral-500
 
-**Animatsiya:** Press paytida scale(0.97), 100ms
+**Animation:** scale(0.97) on press, 100ms
 
 #### 5.2.2 Ghost Button
 
@@ -700,17 +700,17 @@ Shadow: rgba(0,0,0,0.25) 0px 4px 12px
 
 ### 5.3 Badge
 
-| Variant | Rang | Tavsif |
+| Variant | Color | Description |
 |---------|------|--------|
-| `badge-online` | success-500 | Foydalanuvchi online |
+| `badge-online` | success-500 | User is online |
 | `badge-offline` | neutral-500 | Offline |
-| `badge-routing` | info-500 | Signaling qilyapti |
-| `badge-warning` | warning-500 | Zaif signal |
-| `badge-error` | error-500 | Xatolik |
-| `badge-live` | accent-500 | Live/hozir (pulsing) |
-| `badge-encrypted` | primary-500 | Shifrlangan |
+| `badge-routing` | info-500 | Routing/signaling |
+| `badge-warning` | warning-500 | Weak signal |
+| `badge-error` | error-500 | Error |
+| `badge-live` | accent-500 | Live/now (pulsing) |
+| `badge-encrypted` | primary-500 | Encrypted |
 
-#### Spetsifikatsiya:
+#### Specification:
 
 ```
 Height: 24dp
@@ -797,77 +797,77 @@ Actions: right-aligned, ghost buttons
 
 ---
 
-## 6. Holat Belgilari (State Icons)
+## 6. Status Icons (State Icons)
 
 ### 6.1 Network States
 
-| State | Icon | Rang | Matn | Tavsif |
+| State | Icon | Color | Text | Description |
 |-------|------|------|------|--------|
-| `no_network` | 📡❌ | neutral-500 | "Tarmoq topilmadi" | Bluetooth/Wi-Fi o'chirilgan |
-| `no_peers` | 👥❌ | neutral-500 | "Hech kim yaqinda yo'q" | Atrofda peer yo'q |
-| `peer_detected` | 👥✅ | success-500 | "3 ta qurilma topildi" | Peer'lar aniqlandi |
-| `connected` | 🟢 | success-500 | "Tarmoqqa ulangan" | To'liq ulanish |
-| `disconnected` | ⚫ | neutral-500 | "Ulanish uzildi" | Aloqa uzildi |
-| `connecting` | 🔄 | info-500 | "Ulanmoqda..." | Jarayonda |
-| `weak_signal` | ⚡⚠️ | warning-500 | "Signal zaif" | Sifat past |
+| `no_network` | 📡❌ | neutral-500 | "Network not found" | Bluetooth/Wi-Fi off |
+| `no_peers` | 👥❌ | neutral-500 | "No one nearby" | No peers around |
+| `peer_detected` | 👥✅ | success-500 | "3 devices found" | Peers detected |
+| `connected` | 🟢 | success-500 | "Connected to network" | Full connection |
+| `disconnected` | ⚫ | neutral-500 | "Connection lost" | Link dropped |
+| `connecting` | 🔄 | info-500 | "Connecting..." | In progress |
+| `weak_signal` | ⚡⚠️ | warning-500 | "Weak signal" | Low quality |
 
 ### 6.2 Message States
 
-| State | Icon | Rang | Tavsif |
+| State | Icon | Color | Description |
 |-------|------|------|--------|
-| `sending` | ⏳ (pulsing) | neutral-500 | Yuborilmoqda |
-| `sent` | ✓ | neutral-400 | Yuborildi |
-| `delivered` | ✓✓ | primary-500 | Yetkazildi |
-| `read` | ✓✓ | success-500 | O'qildi |
-| `failed` | ⚠️ | error-500 | Yetib bormadi |
+| `sending` | ⏳ (pulsing) | neutral-500 | Sending |
+| `sent` | ✓ | neutral-400 | Sent |
+| `delivered` | ✓✓ | primary-500 | Delivered |
+| `read` | ✓✓ | success-500 | Read |
+| `failed` | ⚠️ | error-500 | Not delivered |
 
 ### 6.3 Connection Quality
 
-| Level | Icon | Rang | Tavsif |
+| Level | Icon | Color | Description |
 |-------|------|------|--------|
-| Excellent | ⚡⚡⚡ | success-500 | Kuchli signal |
-| Good | ⚡⚡ | success-400 | Yaxshi |
-| Fair | ⚡ | warning-500 | O'rtacha |
-| Poor | ⚡⚠️ | error-500 | Zaif |
+| Excellent | ⚡⚡⚡ | success-500 | Strong signal |
+| Good | ⚡⚡ | success-400 | Good |
+| Fair | ⚡ | warning-500 | Average |
+| Poor | ⚡⚠️ | error-500 | Weak |
 
 ---
 
 ## 7. Micro-Interactions
 
-### 7.1 Message Yuborish Tugmasi
+### 7.1 Message Send Button
 
-**Animatsiya ketma-ketligi:**
+**Animation sequence:**
 
-1. **Tap** → Tugma scale(0.95), 80ms
-2. **Input clear** → Matn fade out, 120ms
+1. **Tap** → Button scale(0.95), 80ms
+2. **Input clear** → Text fade out, 120ms
 3. **Icon transition** → Keyboard icon → Paper plane icon, rotation(360°), 250ms
-4. **Send** → Paper plane → topga uchish (translateY -20dp), 300ms, ease-in
-5. **Message appear** → Chat ichida slide-up + fade-in, 200ms
+4. **Send** → Paper plane → flies up (translateY -20dp), 300ms, ease-in
+5. **Message appear** → Slide-up + fade-in inside the chat, 200ms
 6. **Status update** → Pending (⏳ pulsing) → Sent (✓) → Delivered (✓✓), sequential
 
-### 7.2 Bluetooth Ulash Choreography
+### 7.2 Bluetooth Pairing Choreography
 
-**Pairing jarayoni:**
+**Pairing process:**
 
-1. **QR Skanerlash** → Corner brackets animate (scale 1.0 → 1.1 → 1.0, pulse)
+1. **QR scan** → Corner brackets animate (scale 1.0 → 1.1 → 1.0, pulse)
 2. **Device found** → Vibration (100ms), sound tone (optional)
 3. **Connecting** → Both device icons orbit each other, 2s loop
-4. **Connected** → Both icons settle, green ring expand + fade, 400ms
-5. **Encryption established** → Lock icon appear with scale bounce, 300ms
+4. **Connected** → Both icons settle, green ring expands + fades, 400ms
+5. **Encryption established** → Lock icon appears with a scale bounce, 300ms
 
-### 7.3 Mesh Node Animatsiyalari
+### 7.3 Mesh Node Animations
 
-| Holat | Animatsiya |
+| State | Animation |
 |-------|------------|
 | **Node join** | Fade-in + scale(0.5 → 1.0), 300ms |
 | **Node leave** | Fade-out + scale(1.0 → 0.5), 300ms |
-| **Signal strength** | Node pulse speed = signal kuchi (kuchli = tez) |
-| **Connection line** | Dashed stroke animate, continuous |
-| **Data transfer** | Particles along connection line, 2s loop |
+| **Signal strength** | Node pulse speed = signal strength (strong = fast) |
+| **Connection line** | Dashed stroke animation, continuous |
+| **Data transfer** | Particles along the connection line, 2s loop |
 
 ### 7.4 Navigation Transitions
 
-| Transition | Animatsiya |
+| Transition | Animation |
 |------------|------------|
 | **Screen enter** | Slide from right, 300ms, ease-out |
 | **Screen exit** | Slide to left, 250ms, ease-in |
@@ -878,7 +878,7 @@ Actions: right-aligned, ghost buttons
 
 ### 7.5 Haptic Feedback
 
-| Joylashuv | Haptic |
+| Location | Haptic |
 |-----------|--------|
 | **Message received** | Light impact |
 | **Message sent** | Success |
@@ -891,109 +891,107 @@ Actions: right-aligned, ghost buttons
 
 ## 8. Empty States
 
-### 8.1 Tarmoq Yo'q
+### 8.1 No Network
 
 ```
 ┌─────────────────────────────────────┐
 │                                     │
 │         📡❌                        │  ← Illustration (48dp)
 │                                     │
-│    Tarmoq topilmadi                │  ← headline-medium
+│    Network not found               │  ← headline-medium
 │                                     │
-│    Bluetooth va Wi-Fi yoqilganligini│  ← body-large
-│    tekshiring.                      │
+│    Check that Bluetooth and Wi-Fi   │  ← body-large
+│    are turned on.                  │
 │                                     │
-│    [ 🔧 Sozlamalarni ochish ]      │  ← Primary button
+│    [ 🔧 Open settings ]            │  ← Primary button
 │                                     │
 │    ┌─────────────────────────┐     │
-│    │ Bluetooth: [🟢 Yoqish] │     │  ← Quick settings
-│    │ Wi-Fi:     [🟢 Yoqish] │     │
+│    │ Bluetooth: [🟢 Turn on] │     │  ← Quick settings
+│    │ Wi-Fi:     [🟢 Turn on] │     │
 │    └─────────────────────────┘     │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
-### 8.2 Peer Yo'q
+### 8.2 No Peers
 
 ```
 ┌─────────────────────────────────────┐
 │                                     │
 │         👥❌                        │
 │                                     │
-│    Atrofda hech kim yo'q           │
+│    No one around                   │
 │                                     │
-│    Mesh tarmoqqa ulanish uchun     │
-│    yaqiningizdagi odamlar ham      │
-│    MeshNet ishlatishi kerak.       │
+│    To join the mesh, people         │
+│    near you also need to be         │
+│    using MeshNet.                  │
 │                                     │
-│    [ 📲 Do'stlarga ulashish ]      │
-│    [ 🔄 Qayta skanerlash ]         │
+│    [ 📲 Share with friends ]       │
+│    [ 🔄 Rescan ]                   │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
-### 8.3 Roaming / Yaqsiz Muhit
+### 8.3 Roaming / No-Coverage Environment
 
 ```
 ┌─────────────────────────────────────┐
 │                                     │
 │         🗺️⚠️                       │
 │                                     │
-│    Signal zaif                     │
+│    Weak signal                     │
 │                                     │
-│    Jismoniy to'siqlar signal       │
-│    sifatiga ta'sir qilyapti.       │
-│    ochiq joyga chiqishga harakat   │
-│    qiling.                          │
+│    Physical obstacles are          │
+│    affecting signal quality.       │
+│    Try moving to an open area.     │
 │                                     │
-│    📡 Signal kuchi: ▓▓░░░ (35%)    │
+│    📡 Signal strength: ▓▓░░░ (35%) │
 │                                     │
-│    [ 🔄 Qayta ulanish ]           │
+│    [ 🔄 Reconnect ]                │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
-### 8.4 Chat Bo'sh
+### 8.4 Empty Chat
 
 ```
 ┌─────────────────────────────────────┐
 │                                     │
 │         💬                          │
 │                                     │
-│    Suhbat hali boshlanmagan        │
+│    No messages yet                 │
 │                                     │
-│    Birinchi xabaringizni yozing!   │
+│    Write your first message!       │
 │                                     │
-│    🔒 Xabarlar E2E shifrlangan    │
+│    🔒 Messages are E2E encrypted   │
 │                                     │
 │  ┌────────────────────────────┐    │
-│  │ Xabar yozing...      🎤 ➤ │    │
+│  │ Write a message...   🎤 ➤ │    │
 │  └────────────────────────────┘    │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
-### 8.5 Kontaklar Bo'sh
+### 8.5 Empty Contacts
 
 ```
 ┌─────────────────────────────────────┐
 │                                     │
 │         📋                          │
 │                                     │
-│    Kontaktlar yo'q                 │
+│    No contacts                     │
 │                                     │
-│    Boshqa foydalanuvchilar bilan   │
-│    juftlash orqali kontakt          │
-│    qo'shing.                        │
+│    Add contacts by pairing with     │
+│    other users.                    │
 │                                     │
-│    [ ➕ Yangi kontakt qo'shish ]   │
+│    [ ➕ Add contact ]              │
 │                                     │
 └─────────────────────────────────────┘
 ```
 
 ---
 
-## 9. Responsive Qoidalar
+## 9. Responsive Rules
 
 ### 9.1 Breakpoints
 
@@ -1053,17 +1051,17 @@ Actions: right-aligned, ghost buttons
 
 | Element | Label | Hint |
 |---------|-------|------|
-| **Message input** | "Xabar matni" | "Yozing va yuborish uchun bosing" |
-| **Send button** | "Xabar yuborish" | — |
-| **QR Scanner** | "QR kod skanerlash" | "Kamerani QR kodga yo'naltiring" |
-| **Contact card** | "[Ism], [holat]" | "Suhbat ochish uchun bosing" |
-| **Toggle** | "[nom], [yoqilgan/o'chirilgan]" | "O'zgartirish uchun bosing" |
-| **Network status** | "Tarmoq holati: [status]" | — |
+| **Message input** | "Message text" | "Type and press to send" |
+| **Send button** | "Send message" | — |
+| **QR Scanner** | "Scan QR code" | "Point the camera at the QR code" |
+| **Contact card** | "[Name], [status]" | "Tap to open chat" |
+| **Toggle** | "[name], [on/off]" | "Tap to change" |
+| **Network status** | "Network status: [status]" | — |
 
 ### 10.4 Motion
 
-- Reduce motion: Respect `prefers-reduced-motion`
-- Alternative: Static indicators instead of animations
+- Reduce motion: respect `prefers-reduced-motion`
+- Alternative: static indicators instead of animations
 - Critical animations (sending, connecting) still work but simplified
 
 ### 10.5 Color Independence
@@ -1074,7 +1072,7 @@ Actions: right-aligned, ghost buttons
 
 ---
 
-## 11. Dizayn Tokenlari (JSON)
+## 11. Design Tokens (JSON)
 
 ```json
 {
@@ -1189,18 +1187,18 @@ Actions: right-aligned, ghost buttons
 
 ---
 
-## 12. Frontend Handoff — Flutter Spetsifikatsiya
+## 12. Frontend Handoff — Flutter Specification
 
-### 12.1 Papka Tuzilishi
+### 12.1 Folder Structure
 
 ```
 lib/
 ├── theme/
-│   ├── meshnet_theme.dart          ← ThemeData yaratish
-│   ├── colors.dart                 ← Rang tokenlari
-│   ├── typography.dart             ← Shrift iyerarxiyasi
+│   ├── meshnet_theme.dart          ← ThemeData creation
+│   ├── colors.dart                 ← Color tokens
+│   ├── typography.dart             ← Typography hierarchy
 │   ├── dimensions.dart             ← Spacing, radius, elevation
-│   └── animations.dart             ← Duration va easing constants
+│   └── animations.dart             ← Duration and easing constants
 ├── widgets/
 │   ├── buttons/
 │   │   ├── meshnet_button.dart     ← Primary/Ghost/Danger
@@ -1208,24 +1206,24 @@ lib/
 │   │   └── fab_button.dart         ← Floating action button
 │   ├── cards/
 │   │   ├── meshnet_card.dart       ← Default/Elevated/Outlined
-│   │   └── contact_card.dart       ← Kontakt kartasi
+│   │   └── contact_card.dart       ← Contact card
 │   ├── badges/
 │   │   └── meshnet_badge.dart      ← Online/Offline/Routing
 │   ├── inputs/
 │   │   ├── meshnet_input.dart      ← Text field
 │   │   └── meshnet_toggle.dart     ← Toggle switch
 │   ├── mesh/
-│   │   ├── mesh_visualizer.dart    ← Network vizualizatsiya
+│   │   ├── mesh_visualizer.dart    ← Network visualization
 │   │   ├── mesh_node.dart          ← Node widget (CustomPainter)
 │   │   └── mesh_connection.dart    ← Connection line (CustomPainter)
 │   ├── chat/
-│   │   ├── message_bubble.dart     ← Xabar pufagi
-│   │   ├── encryption_banner.dart  ← Shifrlash banneri
-│   │   └── message_status.dart     ← Status indicatorlari
+│   │   ├── message_bubble.dart     ← Message bubble
+│   │   ├── encryption_banner.dart  ← Encryption banner
+│   │   └── message_status.dart     ← Status indicators
 │   └── common/
-│       ├── empty_state.dart        ← Bo'sh holat
-│       ├── snackbar.dart           ← Toast xabar
-│       └── bottom_sheet.dart       ← Pastki panel
+│       ├── empty_state.dart        ← Empty state
+│       ├── snackbar.dart           ← Toast message
+│       └── bottom_sheet.dart       ← Bottom sheet
 ├── screens/
 │   ├── home/
 │   │   └── home_screen.dart
@@ -1241,24 +1239,24 @@ lib/
 │   └── onboarding/
 │       └── onboarding_screen.dart
 └── l10n/
-    └── app_uz.arb                  ← O'zbek tarjimalari
+    └── app_uz.arb                  ← Translations
 ```
 
-### 12.2 Asosiy Widget Qoidalari
+### 12.2 Core Widget Rules
 
-| Qoida | Izoh |
+| Rule | Notes |
 |-------|------|
-| **State Management** | Riverpod yoki Bloc |
-| **Custom Paint** | Mesh visualizer uchun `CustomPainter` |
-| **Animations** | `AnimationController` + `Tween` yoki Rive |
-| **Fonts** | `GoogleFonts.inter()` va `GoogleFonts.jetBrainsMono()` |
-| **Icons** | Material Icons + custom SVG (mesh uchun) |
+| **State Management** | Riverpod or Bloc |
+| **Custom Paint** | `CustomPainter` for the mesh visualizer |
+| **Animations** | `AnimationController` + `Tween` or Rive |
+| **Fonts** | `GoogleFonts.inter()` and `GoogleFonts.jetBrainsMono()` |
+| **Icons** | Material Icons + custom SVG (for mesh) |
 | **Dark/Light** | `ThemeData(brightness: ...)` switch |
 
-### 12.3 Animatsiya Performance
+### 12.3 Animation Performance
 
 - **FPS target:** 60fps minimum
-- **Heavy animations:** `RepaintBoundary` bilan wrapping
+- **Heavy animations:** wrap with `RepaintBoundary`
 - **Mesh visualizer:** `CustomPainter` + `shouldRepaint` optimization
 - **Lazy loading:** ListView.builder for contacts/chat
 - **Image cache:** CachedNetworkImage for avatars
@@ -1282,89 +1280,92 @@ lib/
 
 ### 13.1 Visual Regression
 
-- [ ] Har bir ekran dark mode da to'g'ri ko'rinadi
-- [ ] Har bir ekran light mode da to'g'ri ko'rinadi
-- [ ] Font'lar to'g'ri yuklandi (Inter, JetBrains Mono)
-- [ ] Ranglar tokenlarga mos (contrast ratio 4.5:1+)
-- [ ] Border radius, padding, margin qiymatlari to'g'ri
-- [ ] Elevation va shadow to'g'ri
+- [ ] Each screen renders correctly in dark mode
+- [ ] Each screen renders correctly in light mode
+- [ ] Fonts load correctly (Inter, JetBrains Mono)
+- [ ] Colors match the tokens (contrast ratio 4.5:1+)
+- [ ] Border radius, padding, and margin values are correct
+- [ ] Elevation and shadow are correct
 
 ### 13.2 Component Testing
 
-- [ ] Primary button — 4 holat (default, hover, pressed, disabled)
-- [ ] Ghost button — 4 holat
-- [ ] Danger button — 4 holat
-- [ ] Toggle — ON/OFF holatlari, animatsiya
-- [ ] Input — Focus, error, disabled holatlari
-- [ ] Badge — Barcha variantlar (online, offline, routing, etc.)
-- [ ] Card — Default, elevated, outlined, success, warning, error
+- [ ] Primary button — 4 states (default, hover, pressed, disabled)
+- [ ] Ghost button — 4 states
+- [ ] Danger button — 4 states
+- [ ] Toggle — ON/OFF states, animation
+- [ ] Input — focus, error, disabled states
+- [ ] Badge — all variants (online, offline, routing, etc.)
+- [ ] Card — default, elevated, outlined, success, warning, error
 
 ### 13.3 Screen Testing
 
 | Screen | Test Case |
 |--------|-----------|
-| **Home** | Mesh vizualizatsiya to'g'ri ishlaydi, node'lar animatsiyasi |
-| **Home** | Pull-to-refresh tarmoqni qayta skanerlaydi |
-| **Contacts** | Online/offline bo'limlari to'g'ri ajratilgan |
-| **Contacts** | Qidiruv ishlaydi |
-| **Contacts** | Swipe actions ishlaydi |
-| **Chat** | Shifrlangan banner doimiy ko'rinadi |
-| **Chat** | Xabar statuslari to'g'ri (pending → sent → delivered → read) |
-| **Chat** | Input field keyboard bilan to'g'ri ishlaydi |
-| **Pairing** | QR code to'g'ri generatsiya qilinadi |
-| **Pairing** | QR scan kamerani ochadi |
-| **Pairing** | Timeout va error holatlari ko'rsatiladi |
-| **Settings** | Toggle'lar ishlaydi |
-| **Settings** | Slider ishlaydi |
-| **Onboarding** | 3 sahifaga o'tish ishlaydi |
-| **Onboarding** | "O'tkazib yuborish" ishlaydi |
+| **Home** | Mesh visualization works and the node animation runs |
+| **Home** | Pull-to-refresh rescans the network |
+| **Contacts** | Online/offline sections are separated correctly |
+| **Contacts** | Search works |
+| **Contacts** | Swipe actions work |
+| **Chat** | The encryption banner is always visible |
+| **Chat** | Message statuses are correct (pending → sent → delivered → read) |
+| **Chat** | Input field works correctly with the keyboard |
+| **Pairing** | The QR code is generated correctly |
+| **Pairing** | QR scan opens the camera |
+| **Pairing** | Timeout and error states are shown |
+| **Settings** | Toggles work |
+| **Settings** | The slider works |
+| **Onboarding** | Navigation across 3 pages works |
+| **Onboarding** | "Skip" works |
 
 ### 13.4 Accessibility Testing
 
-- [ ] VoiceOver (iOS) / TalkBack (Android) barcha elementlarni o'qiydi
-- [ ] Touch targetlar 48dp minimum
-- [ ] Kontrast ratio 4.5:1 (body text)
-- [ ] Rang yagona emas — icon + text ham bor
-- [ ] Focus order mantiqiy
-- [ ] Reduce motion ishlatsa animatsiyalar soddalashadi
+- [ ] VoiceOver (iOS) / TalkBack (Android) reads all elements
+- [ ] Touch targets are 48dp minimum
+- [ ] Contrast ratio 4.5:1 (body text)
+- [ ] Color is not the only indicator — icon + text are also present
+- [ ] Focus order is logical
+- [ ] With reduce motion enabled, animations are simplified
 
 ### 13.5 Performance Testing
 
 - [ ] Screen transition < 300ms
 - [ ] Message send animation < 500ms
-- [ ] Mesh visualizer 60fps
-- [ ] ListView scroll — jank yo'q
-- [ ] Cold start < 2 soniya
-- [ ] Hot restart < 1 soniya
+- [ ] Mesh visualizer at 60fps
+- [ ] ListView scroll — no jank
+- [ ] Cold start < 2 seconds
+- [ ] Hot restart < 1 second
 
 ### 13.6 Edge Cases
 
-- [ ] Ekran o'lchamini o'zgartirish → layout to'g'ri moslashadi
-- [ ] Til o'zgartirish → matnlar to'g'ri ko'rinadi
-- [ ] Offline → barcha ekranlar ishlaydi (mesh tarmoq kutadi)
-- [ ] Bluetooth o'chirilgan → "no_network" empty state ko'rinadi
-- [ ] Barcha text uzundan uzun → truncation yoki wrapping
-- [ ] RTL support (kelajak uchun tayyor)
+- [ ] Changing the screen size → layout adapts correctly
+- [ ] Changing the language → texts render correctly
+- [ ] Offline → all screens work (the mesh network waits)
+- [ ] Bluetooth off → the "no_network" empty state appears
+- [ ] Very long text → truncation or wrapping
+- [ ] RTL support (ready for the future)
 
 ### 13.7 Security Visual
 
-- [ ] Shifrlangan banner har doim ko'rinadi (chat ekranida)
-- [ ] Hech qachon parol yoki token ko'rsatilmaydi
-- [ ] QR code timeout ko'rsatiladi
-- [ ] Session timeout vizual bildirish
+- [ ] The encryption banner is always visible (on the chat screen)
+- [ ] Passwords or tokens are never shown
+- [ ] The QR code timeout is shown
+- [ ] Session timeout is visually announced
 
 ---
 
-## Yakuniy Eslatmalar
+## Final Notes
 
-1. **Har doim stress ostida foydalanuvchi perspektivadan fikrlang** — elementlar katta, aniq, tez ishlaydigan bo'lishi kerak.
-2. **"3 soniya qoidasi"** — foydalanuvchi kerakli ma'lumotni 3 soniyada topishi kerak.
-3. **Offline-first mentalitet** — internet bo'lmaganda ham ilova to'liq ishlashi kerak.
-4. **Animatsiyalar maqsadli** — har bir animatsiya foydalanuvchiga biror narsa tushuntiradi.
-5. **Accessibility majburiy** — WCAG 2.1 AA standartlariga rioya qilish shart.
+1. **Always think from a user-under-stress perspective** — elements must be
+   large, clear, and fast.
+2. **The "3-second rule"** — the user must find the needed information within
+   3 seconds.
+3. **Offline-first mindset** — the app must work fully even without internet.
+4. **Purposeful animations** — every animation explains something to the user.
+5. **Accessibility is mandatory** — comply with WCAG 2.1 AA standards.
 
 ---
 
-**TechCorp Dizayn Bo'limi — MeshNet UI/UX Dizayn Tizimi v1.0**
+**TechCorp Design Team — MeshNet UI/UX Design System v1.0**
 
-*Bu hujjat frontend dasturchi (Flutter) va QA testchi uchun asosiy qo'llanma hisoblanadi.*
+*This document is the primary reference for the frontend developer (Flutter)
+and the QA test engineer.*

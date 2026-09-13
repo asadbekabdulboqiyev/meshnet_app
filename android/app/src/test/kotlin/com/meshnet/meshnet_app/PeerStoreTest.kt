@@ -14,8 +14,8 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 
 /**
- * PeerStore testlari: upsert, get, all, authorized, markAuthorized, markSeen, remove.
- * MeshDatabase mock bilan.
+ * PeerStore tests: upsert, get, all, authorized, markAuthorized, markSeen, remove.
+ * Uses a MeshDatabase mock.
  */
 class PeerStoreTest {
 

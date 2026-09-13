@@ -11,7 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * FileTransferManager kengaytirilgan testlari: edge cases, constants,
+ * FileTransferManager extended tests: edge cases, constants,
  * multiple chunk sizes, payload format validation.
  */
 class FileTransferExtendedTest {

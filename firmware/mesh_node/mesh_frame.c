@@ -17,7 +17,7 @@ int mesh_frame_parse(const uint8_t *buf, size_t len, mesh_frame_t *out) {
     memcpy(out->sender, buf + 7, MESH_ID_BYTES);
     memcpy(out->target, buf + 23, MESH_ID_BYTES);
 
-    /* msg_seq: 8 bayt big-endian */
+    /* msg_seq: 8-byte big-endian */
     out->msg_seq = 0;
     for (int i = 0; i < 8; i++) {
         out->msg_seq = (out->msg_seq << 8) | buf[39 + i];
@@ -25,7 +25,7 @@ int mesh_frame_parse(const uint8_t *buf, size_t len, mesh_frame_t *out) {
 
     size_t off = MESH_HEADER_SIZE;
 
-    /* PAIR_REQ/ACK, FIND_PEER_ACK: header'den so'ng 32 bayt pubkey */
+    /* PAIR_REQ/ACK, FIND_PEER_ACK: 32-byte pubkey after the header */
     out->pubkey = NULL;
     out->pubkey_len = 0;
     if (MSG_HAS_PUBKEY(type)) {
@@ -80,7 +80,7 @@ int mesh_frame_is_broadcast(const uint8_t id[MESH_ID_BYTES]) {
     return 1;
 }
 
-/* ESP32 MAC o'qish — faqat ESP32 build'ida mavjud; xost testlarda stub. */
+/* Read the ESP32 MAC — only available in ESP32 builds; a stub in host tests. */
 #if defined(ESP32)
 #include "esp_mac.h"
 void mesh_node_generate_id(uint8_t out[MESH_ID_BYTES]) {
@@ -95,6 +95,6 @@ void mesh_node_generate_id(uint8_t out[MESH_ID_BYTES]) {
 #else
 void mesh_node_generate_id(uint8_t out[MESH_ID_BYTES]) {
     memset(out, 0, MESH_ID_BYTES);
-    out[14] = 0x0E; /* test uchun marker */
+    out[14] = 0x0E; /* marker for tests */
 }
 #endif

@@ -177,7 +177,7 @@ class RoutingEngine(
         val destination: String,
         val nextHop: String,
         val hopCount: Int,
-        var linkQuality: Int, // 0-100 (RSSI asosida)
+        var linkQuality: Int, // 0-100 (based on RSSI)
         val timestamp: Long,
         var lastUsed: Long = timestamp,
         var successCount: Int = 0,
@@ -393,14 +393,14 @@ class RoutingEngine(
             MessageType.SEARCH_QUERY, MessageType.SEARCH_RESULT, MessageType.SEARCH_INDEX_SYNC ->
                 searchHandler?.onSearchFrame(frame)
             MessageType.TEP_EVENT -> tepHandler?.onTepFrame(frame)
-            MessageType.PEER_PING -> { /* javob kerak emas - borlik */ }
+            MessageType.PEER_PING -> { /* no reply needed — presence only */ }
             MessageType.ROLE_GRANT -> rbacHandler?.onRoleGrant(frame)
             MessageType.SIGN_KEY -> cryptoHandler?.onSignKey(frame)
             MessageType.DOC_OPS -> docOpsHandler?.onDocOps(frame)
             MessageType.GROUP_CREATE -> handleGroupCreate(frame)
-            MessageType.GROUP_ADD_MEMBER -> { /* a'zo qo'shildi */ }
-            MessageType.GROUP_REMOVE_MEMBER -> { /* a'zo o'chirildi */ }
-            MessageType.GROUP_LEAVE -> { /* a'zo chiqdi */ }
+            MessageType.GROUP_ADD_MEMBER -> { /* member added */ }
+            MessageType.GROUP_REMOVE_MEMBER -> { /* member removed */ }
+            MessageType.GROUP_LEAVE -> { /* member left */ }
         }
     }
 
@@ -656,8 +656,8 @@ class RoutingEngine(
     // ---------------- TEP (Teno Event Protocol) ----------------
 
     /** Broadcast a signed TEP frame (MessageType.TEP_EVENT) over the mesh.
-     *  Spec: spec/transport-mesh.md — identity + seq seen-cache orqali
-     *  cross-device dedupe; hopLimit/ttl kernel'ga tegmaydi. */
+     *  Spec: spec/transport-mesh.md — cross-device dedupe via identity + seq seen-cache;
+     *  hopLimit/ttl are not modified. */
     fun sendTepEvent(frame: MeshFrame): Boolean {
         val seq = nextSeq()
         registerSeen("$identityDeviceId:$seq")

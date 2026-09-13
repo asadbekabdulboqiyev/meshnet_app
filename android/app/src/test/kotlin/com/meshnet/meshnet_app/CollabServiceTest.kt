@@ -21,9 +21,9 @@ import org.junit.rules.TemporaryFolder
 import org.mockito.Mockito.mock
 
 /**
- * CollabService testlari: lokal amallar mesh'ga broadcast qilinishi,
- * masofaviy frame'lar qo'llanilishi, o'z frame'i e'tiborsiz qolishi,
- * persistence (restart) va event listenerlar.
+ * CollabService tests: local operations broadcast over the mesh,
+ * remote frames applied, own frames ignored,
+ * persistence (restart), and event listeners.
  */
 class CollabServiceTest {
 
@@ -191,7 +191,7 @@ class CollabServiceTest {
 
     @Test
     fun createPollLocalBroadcasts() {
-        val poll = service.createPollLocal("Kino boramizmi?", listOf("ha", "yoq"))
+        val poll = service.createPollLocal("Shall we go to the cinema?", listOf("yes", "no"))
         assertNotNull(poll)
         assertNotNull(emitted.firstOrNull { it.type == MessageType.POLL_CREATE })
         assertTrue(events.any { it.startsWith("pollCreated:") })
@@ -208,9 +208,9 @@ class CollabServiceTest {
 
     @Test
     fun remotePollCreateAndVote() {
-        val q = DocStateB64("Ovqat?")
-        val a = DocStateB64("osh")
-        val b = DocStateB64("lagmon")
+        val q = DocStateB64("Food?")
+        val a = DocStateB64("plov")
+        val b = DocStateB64("lagman")
         service.onPollCreate(remoteFrame(MessageType.POLL_CREATE, "food123|555|$q|$a|$b"))
         assertNotNull(service.polls.getPoll("food123"))
         service.onPollVote(remoteFrame(MessageType.POLL_VOTE, "food123|0"))
@@ -222,11 +222,11 @@ class CollabServiceTest {
 
     @Test
     fun pollsSnapshotDataShape() {
-        val poll = service.createPollLocal("Savol", listOf("x", "y"))!!
+        val poll = service.createPollLocal("Question", listOf("x", "y"))!!
         service.voteLocal(poll.pollId, 0)
         val snap = service.pollsSnapshotData()
         assertEquals(1, snap.size)
-        assertEquals("Savol", snap[0]["question"])
+        assertEquals("Question", snap[0]["question"])
         assertEquals(listOf("x", "y"), snap[0]["options"])
         assertEquals(1, snap[0]["totalVotes"])
     }
@@ -237,14 +237,14 @@ class CollabServiceTest {
     fun stateReloadedFromDiskOnNewInstance() {
         service.addStrokeLocal("persist-board", 0xFF112233.toInt(), 2f, listOf(WhiteboardState.Point(5f, 6f)))
         service.ensureDoc("persist-doc", "Docs")
-        service.editDocLocal("persist-doc", "saqlanadigan matn")
-        val poll = service.createPollLocal("Saqlanadi?", listOf("ha", "yo'q"))!!
+        service.editDocLocal("persist-doc", "persisted text")
+        val poll = service.createPollLocal("Will it persist?", listOf("yes", "no"))!!
         service.voteLocal(poll.pollId, 0)
 
         // New instance over the SAME dir ("app restart")
         val revived = CollabService(ID_SELF, routing, collabDir)
         assertEquals(1, revived.boards["persist-board"]?.size)
-        assertEquals("saqlanadigan matn", revived.docs["persist-doc"]?.text)
+        assertEquals("persisted text", revived.docs["persist-doc"]?.text)
         assertEquals(1, revived.polls.tally(poll.pollId)[0])
         assertEquals(1, revived.polls.voteCount(poll.pollId))
     }

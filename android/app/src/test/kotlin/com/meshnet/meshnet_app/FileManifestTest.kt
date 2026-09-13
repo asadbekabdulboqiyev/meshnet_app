@@ -9,8 +9,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * FileManifest testlari: deterministik fileId, serialize/parse roundtrip,
- * maxsus belgili nomlar, buzilgan manifest rad etilishi.
+ * FileManifest tests: deterministic fileId, serialize/parse roundtrip,
+ * names with special characters, and rejection of corrupted manifests.
  */
 class FileManifestTest {
 
@@ -44,7 +44,7 @@ class FileManifestTest {
     @Test
     fun serializeParseRoundtrip() {
         val original = FileManifest.fromChunks(
-            "hisob-kitob hisobi.txt", "text/plain; charset=utf-8",
+            "accounting report.txt", "text/plain; charset=utf-8",
             sampleChunks(5), 65536, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 1234567890,
         )
         val parsed = FileManifest.parse(original.serialize())
@@ -54,7 +54,7 @@ class FileManifestTest {
 
     @Test
     fun specialCharactersInNameSurvive() {
-        val tricky = "fayl \"quoted\"=with=equals\nnewline & ünïcode.mesh"
+        val tricky = "file \"quoted\"=with=equals\nnewline & ünïcode.mesh"
         val original = FileManifest.fromChunks(tricky, "mime/with=special", sampleChunks(), 1024, "dev=ice", 1)
         val parsed = FileManifest.parse(original.serialize())
         assertEquals(original, parsed)

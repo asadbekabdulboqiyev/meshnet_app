@@ -11,7 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * DoubleRatchet testlari: encrypt/decrypt round-trip, ratchet rotation,
+ * DoubleRatchet tests: encrypt/decrypt round-trip, ratchet rotation,
  * serialization/deserialization, skipped message handling.
  */
 class DoubleRatchetTest {
@@ -28,9 +28,9 @@ class DoubleRatchetTest {
         val aliceDh = DoubleRatchet.generateKeyPair()
         val bobDh = DoubleRatchet.generateKeyPair()
 
-        // Alice: o'zining private + Bob'ning public
+        // Alice: own private + Bob's public
         val alice = DoubleRatchet(sharedSecret, aliceDh, bobDh.publicKey)
-        // Bob: o'zining private + Alice'ning public
+        // Bob: own private + Alice's public
         val bob = DoubleRatchet(sharedSecret, bobDh, aliceDh.publicKey)
 
         return alice to bob
@@ -39,7 +39,7 @@ class DoubleRatchetTest {
     @Test
     fun encryptDecrypt_roundTrip_singleMessage() {
         val (alice, bob) = createAliceAndBob()
-        val plaintext = "Salom, Bob!".toByteArray(Charsets.UTF_8)
+        val plaintext = "Hello, Bob!".toByteArray(Charsets.UTF_8)
 
         val ciphertext = alice.encrypt(plaintext)
         val decrypted = bob.decrypt(ciphertext)
@@ -53,7 +53,7 @@ class DoubleRatchetTest {
         val (alice, bob) = createAliceAndBob()
 
         for (i in 1..50) {
-            val msg = "Xabar #$i".toByteArray(Charsets.UTF_8)
+            val msg = "Message #$i".toByteArray(Charsets.UTF_8)
             val ct = alice.encrypt(msg)
             val dt = bob.decrypt(ct)
             assertNotNull(dt)
@@ -66,26 +66,26 @@ class DoubleRatchetTest {
         val (alice, bob) = createAliceAndBob()
 
         // Alice -> Bob
-        val a2b = alice.encrypt("Alice dan Bob ga".toByteArray(Charsets.UTF_8))
+        val a2b = alice.encrypt("From Alice to Bob".toByteArray(Charsets.UTF_8))
         val bReceived = bob.decrypt(a2b)
-        assertArrayEquals("Alice dan Bob ga".toByteArray(Charsets.UTF_8), bReceived!!)
+        assertArrayEquals("From Alice to Bob".toByteArray(Charsets.UTF_8), bReceived!!)
 
         // Bob -> Alice
-        val b2a = bob.encrypt("Bob dan Alice ga".toByteArray(Charsets.UTF_8))
+        val b2a = bob.encrypt("From Bob to Alice".toByteArray(Charsets.UTF_8))
         val aReceived = alice.decrypt(b2a)
-        assertArrayEquals("Bob dan Alice ga".toByteArray(Charsets.UTF_8), aReceived!!)
+        assertArrayEquals("From Bob to Alice".toByteArray(Charsets.UTF_8), aReceived!!)
 
         // Yana Alice -> Bob
-        val a2b2 = alice.encrypt("Yana bir xabar".toByteArray(Charsets.UTF_8))
+        val a2b2 = alice.encrypt("Another message".toByteArray(Charsets.UTF_8))
         val bReceived2 = bob.decrypt(a2b2)
-        assertArrayEquals("Yana bir xabar".toByteArray(Charsets.UTF_8), bReceived2!!)
+        assertArrayEquals("Another message".toByteArray(Charsets.UTF_8), bReceived2!!)
     }
 
     @Test
     fun shouldRotate_afterManyMessages() {
         val (alice, bob) = createAliceAndBob()
 
-        // 100 ta xabar yuboramiz - ratchet rotation bo'lishi kerak
+        // Send 100 messages - the ratchet should rotate
         for (i in 1..100) {
             val msg = "Msg $i".toByteArray(Charsets.UTF_8)
             val ct = alice.encrypt(msg)
@@ -94,18 +94,18 @@ class DoubleRatchetTest {
             assertArrayEquals(msg, dt!!)
         }
 
-        // Keyin yana xabar - hali ham ishlashi kerak
-        val extra = alice.encrypt("Keyingi xabar".toByteArray(Charsets.UTF_8))
+        // Then send another message - it should still work
+        val extra = alice.encrypt("Next message".toByteArray(Charsets.UTF_8))
         val extraDec = bob.decrypt(extra)
         assertNotNull(extraDec)
-        assertArrayEquals("Keyingi xabar".toByteArray(Charsets.UTF_8), extraDec!!)
+        assertArrayEquals("Next message".toByteArray(Charsets.UTF_8), extraDec!!)
     }
 
     @Test
     fun serializationDeserialization_preservesState() {
         val (alice, bob) = createAliceAndBob()
 
-        // Bir necha xabar yuboramiz
+        // Send a few messages
         for (i in 1..10) {
             val msg = "Ser $i".toByteArray(Charsets.UTF_8)
             val ct = alice.encrypt(msg)
@@ -113,27 +113,27 @@ class DoubleRatchetTest {
             assertNotNull(dt)
         }
 
-        // Alice'ni serialize qilamiz
+        // Serialize Alice
         val serialized = alice.serialize()
         assertNotNull(serialized)
         assertTrue(serialized.size > 0)
 
-        // Yangi alice yaratib, deserialize qilamiz
+        // Create a fresh Alice and deserialize
         val aliceDh = DoubleRatchet.generateKeyPair()
         val bobDh = DoubleRatchet.generateKeyPair()
         val sharedSecret = MeshCrypto.computeSharedSecret(aliceDh.privateKey, bobDh.publicKey)
         val restoredAlice = DoubleRatchet(sharedSecret, aliceDh, bobDh.publicKey)
         restoredAlice.deserialize(serialized)
 
-        // Restored Alice yana xabar yuborishi kerak
-        val msg = "Restored dan".toByteArray(Charsets.UTF_8)
+        // The restored Alice must be able to send again
+        val msg = "From restored".toByteArray(Charsets.UTF_8)
         val ct = restoredAlice.encrypt(msg)
         val dt = bob.decrypt(ct)
         assertNotNull(dt)
         assertArrayEquals(msg, dt!!)
 
-        // Bob ham yana qabul qilishi kerak
-        val bobMsg = "Bob dan restored ga".toByteArray(Charsets.UTF_8)
+        // Bob must also be able to receive again
+        val bobMsg = "From Bob to restored".toByteArray(Charsets.UTF_8)
         val bobCt = bob.encrypt(bobMsg)
         val bobDt = restoredAlice.decrypt(bobCt)
         assertNotNull(bobDt)
@@ -144,11 +144,11 @@ class DoubleRatchetTest {
     fun skippedMessageHandling_outOfOrderDelivery() {
         val (alice, bob) = createAliceAndBob()
 
-        // Alice 5 ta xabar yuboradi
+        // Alice sends 5 messages
         val messages = (1..5).map { "Skip $it".toByteArray(Charsets.UTF_8) }
         val ciphertexts = messages.map { alice.encrypt(it) }
 
-        // Bob 3, 1, 5, 2, 4 tartibida qabul qiladi (out of order)
+        // Bob receives in order 3, 1, 5, 2, 4 (out of order)
         val order = intArrayOf(2, 0, 4, 1, 3) // 0-indexed
 
         for (idx in order) {
@@ -162,10 +162,10 @@ class DoubleRatchetTest {
     fun skippedMessageHandling_gapThenFill() {
         val (alice, bob) = createAliceAndBob()
 
-        // Alice 10 ta xabar yuboradi
+        // Alice sends 10 messages
         val cts = (1..10).map { alice.encrypt("Gap $it".toByteArray(Charsets.UTF_8)) }
 
-        // Bob faqat 1, 2, 10 ni qabul qiladi (3-9 o'tkazib yuborilgan)
+        // Bob only receives 1, 2, 10 (3-9 are skipped)
         var dt = bob.decrypt(cts[0]) // #1
         assertNotNull(dt)
         dt = bob.decrypt(cts[1]) // #2
@@ -173,7 +173,7 @@ class DoubleRatchetTest {
         dt = bob.decrypt(cts[9]) // #10
         assertNotNull(dt)
 
-        // Endi 3-9 ni yuboramiz - skipped keys ishlashi kerak
+        // Now deliver 3-9 - the skipped keys must work
         for (i in 2..8) {
             dt = bob.decrypt(cts[i])
             assertNotNull(dt)
@@ -185,14 +185,14 @@ class DoubleRatchetTest {
     fun ratchetStep_onRemoteKeyChange() {
         val (alice, bob) = createAliceAndBob()
 
-        // Normal oqim
+        // Normal flow
         for (i in 1..5) {
             val ct = alice.encrypt("Normal $i".toByteArray(Charsets.UTF_8))
             val dt = bob.decrypt(ct)
             assertNotNull(dt)
         }
 
-        // Bob yangi DH key pair yaratadi (simulyatsiya: bob qayta start qildi)
+        // Bob generates a new DH key pair (simulation: Bob restarted)
         val newBobDh = DoubleRatchet.generateKeyPair()
         val newBob = DoubleRatchet(
             MeshCrypto.computeSharedSecret(newBobDh.privateKey, alice.getSendPublicKey()),
@@ -200,26 +200,26 @@ class DoubleRatchetTest {
             alice.getSendPublicKey()
         )
 
-        // Alice eski public key bilan yuboradi - Bob ratchet step qilishi kerak
-        val ct = alice.encrypt("Key o'zgarganidan keyin".toByteArray(Charsets.UTF_8))
+        // Alice sends with the old public key - Bob must perform a ratchet step
+        val ct = alice.encrypt("After the key change".toByteArray(Charsets.UTF_8))
         val dt = newBob.decrypt(ct)
-        // Bu ishlamasligi kerak chunki Bob yangi key ga o'tgan
-        // Ammo Alice ham o'z keyini yangilagan bo'lishi kerak
-        // Bu test hozirgi implementatsiyada xato berishi mumkin - ratchet step majburiy emas
+        // This should not work because Bob has moved to a new key
+        // But Alice should also have rotated her own key
+        // This test may fail in the current implementation - the ratchet step is not required
     }
 
     @Test
     fun encryptionProducesDifferentCiphertexts() {
         val (alice, bob) = createAliceAndBob()
-        val plaintext = "Takrorlanuvchi xabar".toByteArray(Charsets.UTF_8)
+        val plaintext = "Repeating message".toByteArray(Charsets.UTF_8)
 
         val ct1 = alice.encrypt(plaintext)
         val ct2 = alice.encrypt(plaintext)
 
-        // Har safar har xil ciphertext (nonce har xil)
+        // Each time a different ciphertext (different nonce)
         assertFalse(ct1.contentEquals(ct2))
 
-        // Lekin ikkalasi ham decrypt qilinadi
+        // But both decrypt successfully
         val dt1 = bob.decrypt(ct1)
         val dt2 = bob.decrypt(ct2)
         assertArrayEquals(plaintext, dt1!!)
@@ -229,11 +229,11 @@ class DoubleRatchetTest {
     @Test
     fun decryptWrongKey_fails() {
         val (alice, bob) = createAliceAndBob()
-        val plaintext = "Maxfiy".toByteArray(Charsets.UTF_8)
+        val plaintext = "Secret".toByteArray(Charsets.UTF_8)
 
         val ct = alice.encrypt(plaintext)
 
-        // Yana bir juftlik bilan decrypt urinish
+        // Try to decrypt with another key pair
         val eveDh = DoubleRatchet.generateKeyPair()
         val aliceDh = DoubleRatchet.generateKeyPair()
         val eveShared = MeshCrypto.computeSharedSecret(eveDh.privateKey, aliceDh.publicKey)
@@ -246,10 +246,10 @@ class DoubleRatchetTest {
     @Test
     fun decryptTamperedCiphertext_fails() {
         val (alice, bob) = createAliceAndBob()
-        val plaintext = "Buzilmagan".toByteArray(Charsets.UTF_8)
+        val plaintext = "Untampered".toByteArray(Charsets.UTF_8)
 
         val ct = alice.encrypt(plaintext)
-        // Ciphertext ni buzamiz (so'nggi bayt)
+        // Tamper with the ciphertext (last byte)
         val tampered = ct.copyOf()
         tampered[tampered.size - 1] = (tampered.last().toInt() xor 0xFF).toByte()
 
@@ -271,7 +271,7 @@ class DoubleRatchetTest {
         }
         val elapsed = System.currentTimeMillis() - startTime
 
-        // 200 ta xabar < 5 soniyada (jihatda juda keng)
+        // 200 messages < 5 seconds (a very loose bound)
         assertTrue("Too slow: ${elapsed}ms", elapsed < 5000)
     }
 
@@ -279,7 +279,7 @@ class DoubleRatchetTest {
     fun serializeDeserialize_multipleTimes() {
         val (alice, bob) = createAliceAndBob()
 
-        // 20 xabar
+        // 20 messages
         for (i in 1..20) {
             val ct = alice.encrypt("Multi $i".toByteArray(Charsets.UTF_8))
             val dt = bob.decrypt(ct)
@@ -295,13 +295,13 @@ class DoubleRatchetTest {
             val restored = DoubleRatchet(sharedSecret, aliceDh, bobDh.publicKey)
             restored.deserialize(serialized)
 
-            // Yangi xabar yuborish
+            // Send a new message
             val ct = restored.encrypt("Round $round".toByteArray(Charsets.UTF_8))
             val dt = bob.decrypt(ct)
             assertNotNull(dt)
             assertArrayEquals("Round $round".toByteArray(Charsets.UTF_8), dt!!)
 
-            // Qayta serialize
+            // Re-serialize
             serialized = restored.serialize()
         }
     }
@@ -310,19 +310,19 @@ class DoubleRatchetTest {
     fun skippedKeysMap_doesNotGrowIndefinitely() {
         val (alice, bob) = createAliceAndBob()
 
-        // Ko'p xabar yuborib, skip qilamiz
+        // Send many messages and skip some
         val cts = (1..200).map { alice.encrypt("SkipLimit $it".toByteArray(Charsets.UTF_8)) }
 
-        // Faqat oxirgi 50 tasini qabul qilamiz
+        // Only receive the last 50
         for (i in 150..199) {
             val dt = bob.decrypt(cts[i])
             assertNotNull(dt)
         }
 
-        // Skipped keys map o'lchami MAX_SKIPPED (1000) dan oshmasligi kerak
-        // Bu ichki implementatsiya xususiyati - test faqat crash qilmaganini tekshiradi
-        // Yana xabar yuborish ishlashi kerak
-        val ct = alice.encrypt("Keyingi".toByteArray(Charsets.UTF_8))
+        // The skipped-keys map must not exceed MAX_SKIPPED (1000)
+        // This is an internal implementation detail - the test only checks that no crash occurs
+        // Sending another message must still work
+        val ct = alice.encrypt("Next".toByteArray(Charsets.UTF_8))
         val dt = bob.decrypt(ct)
         assertNotNull(dt)
     }

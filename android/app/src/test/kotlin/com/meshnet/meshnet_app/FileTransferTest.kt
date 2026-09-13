@@ -11,8 +11,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * FileTransferManager testlari: FILE_START/FILE_CHUNK/FILE_END oqimi,
- * progress kuzatishi, bekor qilish va max hajm cheklovi.
+ * FileTransferManager tests: FILE_START/FILE_CHUNK/FILE_END flow,
+ * progress tracking, cancellation, and the maximum size limit.
  */
 class FileTransferTest {
 
@@ -40,7 +40,7 @@ class FileTransferTest {
         assertNotNull(frame.payload)
         assertTrue(frame.payload.size > 0)
 
-        // Frame decode qilinishi kerak
+        // The frame must decode
         val decoded = MeshFrame.decode(MeshFrame.encode(frame))!!
         assertEquals(MessageType.FILE_START, decoded.type)
         assertEquals(SENDER_ID, decoded.senderId)
@@ -79,7 +79,7 @@ class FileTransferTest {
         assertEquals(3, frames.count { it.type == MessageType.FILE_CHUNK })
         assertEquals(1, frames.count { it.type == MessageType.FILE_END })
 
-        // Har bir chunk frame tekshirish
+        // Verify every chunk frame
         frames.forEach { frame ->
             assertEquals(SENDER_ID, frame.senderId)
             assertEquals(RECEIVER_ID, frame.targetId)
@@ -87,13 +87,13 @@ class FileTransferTest {
             assertEquals(4, frame.hopLimit)
         }
 
-        // Chunk indexlar: 0, 1, 2
+        // Chunk indices: 0, 1, 2
         val chunkFrames = frames.filter { it.type == MessageType.FILE_CHUNK }
         for (i in chunkFrames.indices) {
             val decoded = MeshFrame.decode(MeshFrame.encode(chunkFrames[i]))!!
             // Payload: 16 bytes UUID + 8 bytes chunk index + chunk data
             assertTrue(decoded.payload.size >= 24)
-            // Chunk index 8 byte (big-endian) payload[16..23] da
+            // Chunk index is 8 bytes (big-endian) at payload[16..23]
         }
 
         // FILE_END frame payload = 16 bytes UUID
@@ -126,7 +126,7 @@ class FileTransferTest {
 
     @Test
     fun handleFileStart_chunk_end_roundTrip() {
-        val originalBytes = "Bu test fayli mazmuni uchun".toByteArray(Charsets.UTF_8)
+        val originalBytes = "Content of this test file".toByteArray(Charsets.UTF_8)
         val (transferId, startFrame) = manager.startTransfer(
             "roundtrip.txt",
             originalBytes.size.toLong(),
@@ -134,7 +134,7 @@ class FileTransferTest {
             SENDER_ID,
         )
 
-        // 1. Receiver FILE_START qabul qiladi
+        // 1. Receiver handles FILE_START
         val info = manager.handleFileStart(SENDER_ID, startFrame.payload)
         assertNotNull(info)
         assertEquals(transferId, info!!.transferId)
@@ -142,7 +142,7 @@ class FileTransferTest {
         assertEquals(originalBytes.size.toLong(), info.fileSize)
         assertEquals("text/plain", info.mimeType)
 
-        // 2. Chunklar generatsiya qilinadi
+        // 2. Chunks are generated
         val chunkFrames = manager.generateChunkFrames(
             transferId = transferId,
             fileBytes = originalBytes,
@@ -151,7 +151,7 @@ class FileTransferTest {
             useWifi = false,
         )
 
-        // 3. Har bir FILE_CHUNK qabul qilinadi
+        // 3. Each FILE_CHUNK is handled
         val chunkFramesOnly = chunkFrames.filter { it.type == MessageType.FILE_CHUNK }
         for (frame in chunkFramesOnly) {
             val result = manager.handleFileChunk(frame.payload)
@@ -160,7 +160,7 @@ class FileTransferTest {
             assertTrue(result.second.size > 0)
         }
 
-        // 4. FILE_END qabul qilinadi -> to'liq fayl qaytariladi
+        // 4. FILE_END is handled -> the complete file is returned
         val endFrame = chunkFrames.find { it.type == MessageType.FILE_END }!!
         val endResult = manager.handleFileEnd(endFrame.payload)
         assertNotNull(endResult)
@@ -169,7 +169,7 @@ class FileTransferTest {
         assertNotNull(endResult.third)
         assertTrue(originalBytes.contentEquals(endResult.second!!))
 
-        // Progress tekshirish (sender + receiver ikkalasi ham update qilgan)
+        // Progress check (both sender and receiver updated it)
         val progress = manager.getProgress(transferId)
         assertNotNull(progress)
         assertEquals("completed", progress!!.status)
@@ -182,10 +182,10 @@ class FileTransferTest {
             "progress.bin", fileBytes.size.toLong(), "application/octet-stream", SENDER_ID
         )
 
-        // Dastlab progress yo'q
+        // No progress initially
         assertNull(manager.getProgress("unknown-id"))
 
-        // Transfer boshlanganda
+        // Once the transfer starts
         var progress = manager.getProgress(transferId)
         assertNotNull(progress)
         assertEquals("transferring", progress!!.status)
@@ -193,7 +193,7 @@ class FileTransferTest {
         assertEquals(0, progress.receivedBytes)
         assertEquals(0, progress.percent)
 
-        // Chunklar yuborilganda sentBytes o'sadi
+        // sentBytes grows as chunks are sent
         val frames = manager.generateChunkFrames(
             transferId = transferId,
             fileBytes = fileBytes,
@@ -216,20 +216,20 @@ class FileTransferTest {
             "cancel.bin", fileBytes.size.toLong(), "application/octet-stream", SENDER_ID
         )
 
-        // Transfer faol
+        // Transfer is active
         var progress = manager.getProgress(transferId)
         assertNotNull(progress)
         assertEquals("transferring", progress!!.status)
 
-        // Bekor qilamiz
+        // Cancel it
         manager.cancelTransfer(transferId)
 
         progress = manager.getProgress(transferId)
         assertNotNull(progress)
         assertEquals("cancelled", progress!!.status)
 
-        // Assembly buffer o'chirilgan
-        // Keyinroq chunk kelinsa ham ishlamaydi
+        // Assembly buffer has been cleared
+        // Later chunks will not work either
         val frames = manager.generateChunkFrames(
             transferId = transferId,
             fileBytes = fileBytes,
@@ -237,11 +237,11 @@ class FileTransferTest {
             targetId = RECEIVER_ID,
             useWifi = false,
         )
-        // Chunk frame yuboramiz lekin buffer o'chganligi uchun null qaytaradi
+        // Send a chunk frame, but the cleared buffer makes it return null
         val chunkFrame = frames.first { it.type == MessageType.FILE_CHUNK }
         val result = manager.handleFileChunk(chunkFrame.payload)
-        // Bu transfer bekor qilingan, shuning uchun handleFileChunk null qaytarishi mumkin
-        // (ammo hozirgi implementatsiyada buffer o'chmagan, faqat status o'zgargan)
+        // This transfer was cancelled, so handleFileChunk may return null
+        // (in the current implementation the buffer is not cleared, only the status changes)
     }
 
     @Test
@@ -268,13 +268,13 @@ class FileTransferTest {
 
     @Test
     fun handleFileStart_withInvalidPayload_returnsNull() {
-        // Kalta payload
+        // Short payload
         assertNull(manager.handleFileStart(SENDER_ID, ByteArray(10)))
     }
 
     @Test
     fun handleFileChunk_withInvalidPayload_returnsNull() {
-        // Kalta payload
+        // Short payload
         assertNull(manager.handleFileChunk(ByteArray(10)))
     }
 
@@ -282,22 +282,22 @@ class FileTransferTest {
     fun handleFileEnd_withInvalidPayload_returnsNull() {
         assertNull(manager.handleFileEnd(ByteArray(10)))
 
-        // Noto'g'ri UUID (16 byte emas)
+        // Invalid UUID (not 16 bytes)
         val badEnd = ByteArray(15)
         assertNull(manager.handleFileEnd(badEnd))
     }
 
     @Test
     fun multipleTransfers_independent() {
-        val file1 = "Birinchi fayl".toByteArray(Charsets.UTF_8)
-        val file2 = "Ikkinchi fayl mazmuni".toByteArray(Charsets.UTF_8)
+        val file1 = "First file".toByteArray(Charsets.UTF_8)
+        val file2 = "Second file content".toByteArray(Charsets.UTF_8)
 
         val (id1, start1) = manager.startTransfer("f1.txt", file1.size.toLong(), "text/plain", SENDER_ID)
         val (id2, start2) = manager.startTransfer("f2.txt", file2.size.toLong(), "text/plain", SENDER_ID)
 
         assertFalse(id1 == id2)
 
-        // Har biri o'z progressiga ega
+        // Each has its own progress
         val p1 = manager.getProgress(id1)
         val p2 = manager.getProgress(id2)
         assertNotNull(p1)
@@ -305,7 +305,7 @@ class FileTransferTest {
         assertEquals(0, p1!!.sentBytes)
         assertEquals(0, p2!!.sentBytes)
 
-        // ID1 ni bekor qilamiz
+        // Cancel ID1
         manager.cancelTransfer(id1)
         assertEquals("cancelled", manager.getProgress(id1)!!.status)
         assertEquals("transferring", manager.getProgress(id2)!!.status)

@@ -17,8 +17,8 @@ import org.junit.rules.TemporaryFolder
 import kotlin.random.Random
 
 /**
- * SyncPlanner + FileAssembler testlari: incremental sync mantiqi va
- * hash-verified yig'ish.
+ * SyncPlanner + FileAssembler tests: incremental sync logic and
+ * hash-verified assembly.
  */
 class SyncAssembleTest {
 

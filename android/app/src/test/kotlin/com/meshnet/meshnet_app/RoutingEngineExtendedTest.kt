@@ -18,7 +18,7 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 
 /**
- * RoutingEngine kengaytirilgan testlari: route learning, stats,
+ * RoutingEngine extended tests: route learning, stats,
  * sendVoiceMessage, sendGroupMessage, edge cases.
  */
 class RoutingEngineExtendedTest {
@@ -274,7 +274,7 @@ class RoutingEngineExtendedTest {
     fun sendText_unicodeMessage() {
         val a = makeEngine(ID_A, MeshCrypto.generateKeyPair())
         a.peerStore.markAuthorized(ID_B, MeshCrypto.b64(MeshCrypto.generateKeyPair().publicKey))
-        val msgId = a.engine.sendText(ID_B, "Salom dunyo! Yangi yil muborak")
+        val msgId = a.engine.sendText(ID_B, "Hello world! Happy New Year")
         assertNotNull(msgId)
     }
 

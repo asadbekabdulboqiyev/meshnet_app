@@ -25,9 +25,9 @@ import com.meshnet.meshnet_app.storage.PeerStore
 import kotlin.random.Random
 
 /**
- * Phase 2 integratsiya testlari: real HTTP server + real ChunkStore bilan
- * to'liq share -> list -> manifest -> chunk fetch -> assemble zanjiri.
- * Bu LocalNet fayl almashinuvininng "P2P Dropbox" yo'li.
+ * Phase 2 integration tests: with a real HTTP server + real ChunkStore,
+ * the full share -> list -> manifest -> chunk fetch -> assemble chain.
+ * This is LocalNet file sharing's "P2P Dropbox" path.
  */
 class FileSyncIntegrationTest {
 

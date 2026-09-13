@@ -18,7 +18,7 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 
 /**
- * RoutingEngine stress testlari: concurrent access, performance, edge cases.
+ * RoutingEngine stress tests: concurrent access, performance, edge cases.
  */
 class RoutingEngineStressTest {
 

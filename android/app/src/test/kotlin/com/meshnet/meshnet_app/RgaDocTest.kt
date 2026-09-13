@@ -8,10 +8,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * RGA-based DOC_OPS testlari: DocState diff generator va merge.
- * ECKENDING: Bu test, dokument o'zgarishlarini (insert/delete ops) CRDT/RGA
- * usulida solishtirib ko'rib turadi. Implementatsiya "last-writer-wins" dan
- * foydalanib, kerak bo'lsa RGA ops darajasida naqos qilinadi.
+ * RGA-based DOC_OPS tests: DocState diff generator and merge.
+ * NOTE: This test currently compares document changes (insert/delete ops) via
+ * the CRDT/RGA approach. The implementation uses "last-writer-wins" and,
+ * if needed, RGA ops are compared at the op level.
  */
 class RgaDocTest {
 

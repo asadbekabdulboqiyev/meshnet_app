@@ -8,7 +8,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** X25519 + ChaCha20-Poly1305 E2E kriptografiyasi testlari. */
+/** X25519 + ChaCha20-Poly1305 E2E cryptography tests. */
 class MeshCryptoTest {
 
     @Test
@@ -53,14 +53,14 @@ class MeshCryptoTest {
         val a = MeshCrypto.generateKeyPair()
         val b = MeshCrypto.generateKeyPair()
         val secret = MeshCrypto.computeSharedSecret(a.privateKey, b.publicKey)
-        val plain = "maxfiy xabar".toByteArray(Charsets.UTF_8)
+        val plain = "secret message".toByteArray(Charsets.UTF_8)
 
         val ciphertext = MeshCrypto.encrypt(secret, plain)
         assertFalse(plain.contentEquals(ciphertext))
 
         val decrypted = MeshCrypto.decrypt(secret, ciphertext)
         assertArrayEquals(plain, decrypted)
-        assertEquals("maxfiy xabar", String(decrypted, Charsets.UTF_8))
+        assertEquals("secret message", String(decrypted, Charsets.UTF_8))
     }
 
     @Test
@@ -68,11 +68,11 @@ class MeshCryptoTest {
         val a = MeshCrypto.generateKeyPair()
         val b = MeshCrypto.generateKeyPair()
         val secret = MeshCrypto.computeSharedSecret(a.privateKey, b.publicKey)
-        val plain = "salom".toByteArray(Charsets.UTF_8)
+        val plain = "hello".toByteArray(Charsets.UTF_8)
 
         val c1 = MeshCrypto.encrypt(secret, plain)
         val c2 = MeshCrypto.encrypt(secret, plain)
-        assertFalse(c1.contentEquals(c2)) // nonce har safar boshqacha
+        assertFalse(c1.contentEquals(c2)) // nonce differs each time
     }
 
     @Test
@@ -83,7 +83,7 @@ class MeshCryptoTest {
         val secretAB = MeshCrypto.computeSharedSecret(a.privateKey, b.publicKey)
         val secretAC = MeshCrypto.computeSharedSecret(a.privateKey, c.publicKey)
 
-        val ciphertext = MeshCrypto.encrypt(secretAB, "salom".toByteArray(Charsets.UTF_8))
+        val ciphertext = MeshCrypto.encrypt(secretAB, "hello".toByteArray(Charsets.UTF_8))
 
         assertThrows(Exception::class.java) {
             MeshCrypto.decrypt(secretAC, ciphertext)
@@ -96,7 +96,7 @@ class MeshCryptoTest {
         val b = MeshCrypto.generateKeyPair()
         val secret = MeshCrypto.computeSharedSecret(a.privateKey, b.publicKey)
 
-        val ciphertext = MeshCrypto.encrypt(secret, "salom".toByteArray(Charsets.UTF_8))
+        val ciphertext = MeshCrypto.encrypt(secret, "hello".toByteArray(Charsets.UTF_8))
         ciphertext[ciphertext.size - 1] = (ciphertext.last().toInt() xor 0x01).toByte()
 
         assertThrows(Exception::class.java) {
@@ -111,17 +111,17 @@ class MeshCryptoTest {
         val secret = MeshCrypto.computeSharedSecret(a.privateKey, b.publicKey)
         val aad = "MeshNet:22222222-2222-2222-2222-222222222222".toByteArray(Charsets.UTF_8)
 
-        val ciphertext = MeshCrypto.encrypt(secret, "salom".toByteArray(Charsets.UTF_8), aad)
+        val ciphertext = MeshCrypto.encrypt(secret, "hello".toByteArray(Charsets.UTF_8), aad)
 
-        // Boshqa AAD bilan ochib bo'lmaydi
+        // Cannot be opened with a different AAD
         val wrongAad = "MeshNet:Evil".toByteArray(Charsets.UTF_8)
         assertThrows(Exception::class.java) {
             MeshCrypto.decrypt(secret, ciphertext, wrongAad)
         }
 
-        // To'g'ri AAD bilan ochiladi
+        // Opens with the correct AAD
         val decrypted = MeshCrypto.decrypt(secret, ciphertext, aad)
-        assertArrayEquals("salom".toByteArray(Charsets.UTF_8), decrypted)
+        assertArrayEquals("hello".toByteArray(Charsets.UTF_8), decrypted)
     }
 
     @Test

@@ -186,8 +186,8 @@ class NetworkMapPainter extends CustomPainter {
 
     final lines = [
       node.name,
-      'Signall: ${node.quality}%',
-      'Masofa: ${node.hops} qadam',
+      'Signal: ${node.quality}%',
+      'Distance: ${node.hops} hops',
       node.isOnline ? 'Online' : 'Offline',
     ];
 
