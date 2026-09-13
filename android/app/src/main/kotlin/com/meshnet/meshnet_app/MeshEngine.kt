@@ -17,6 +17,7 @@ import com.meshnet.meshnet_app.protocol.RoutingEngine
 import com.meshnet.meshnet_app.protocol.VoiceEncoder
 import com.meshnet.meshnet_app.protocol.VoicePlayer
 import com.meshnet.meshnet_app.protocol.VoiceRecorder
+import com.meshnet.meshnet_app.tep.TepEventManager
 import com.meshnet.meshnet_app.storage.MeshDatabase
 import com.meshnet.meshnet_app.storage.MessageStore
 import com.meshnet.meshnet_app.storage.PeerStore
@@ -61,6 +62,7 @@ class MeshEngine(private val context: Context) {
     private lateinit var wifiTransport: WifiDirectTransport
     private lateinit var transportManager: TransportManager
     private lateinit var routing: RoutingEngine
+    private lateinit var tepEventManager: TepEventManager
 
     private val fileTransferManager = FileTransferManager()
     private val voiceRecorder = VoiceRecorder(context)
@@ -177,6 +179,25 @@ class MeshEngine(private val context: Context) {
                     "status" to (if (messageId != null) "sent" else "failed"),
                     "messageId" to (messageId ?: ""),
                     "timestamp" to System.currentTimeMillis(),
+                ))
+            }
+
+            "emitTepEvent" -> {
+                val type = call.argument<String>("type")
+                val payload = call.argument<String>("payload")
+                if (type == null || payload == null) {
+                    result.error("bad_args", "type/payload required", null)
+                    return
+                }
+                val frame = tepEventManager.buildTepFrame(
+                    type = type,
+                    payload = payload.toByteArray(),
+                    msgSeq = 0, // routing.sendTepEvent() real seq'ni qo'yadi
+                )
+                val sent = routing.sendTepEvent(frame)
+                result.success(mapOf(
+                    "status" to (if (sent) "sent" else "failed"),
+                    "type" to type,
                 ))
             }
 
@@ -1039,6 +1060,27 @@ class MeshEngine(private val context: Context) {
         )
         routing.setIdentityPublicKey(identity.publicKey())
         routing.addListener(routingListener)
+        // TEP (Teno Event Protocol): signed app-level eventlarni mesh bo'ylab
+        // broadcast qilish/qabul qilish (spec/transport-mesh.md). Secret —
+        // maxsus app-level kalit; ishlab chiqarishda secure storage'dan olinadi.
+        tepEventManager = TepEventManager(
+            senderDeviceId = identity.deviceId(),
+            source = "meshnet",
+            secret = securedTepSecret(),
+        )
+        routing.tepHandler = object : RoutingEngine.TepHandler {
+            override fun onTepFrame(frame: MeshFrame) {
+                val event = tepEventManager?.decodeReceived(frame.payload)
+                if (event != null) {
+                    emit("tepEvent", mapOf(
+                        "type" to event.type,
+                        "eventId" to event.eventId,
+                        "source" to event.senderSource,
+                        "payload" to event.payload.decodeToString(),
+                    ))
+                }
+            }
+        }
         voicePlayer.listener = object : VoicePlayer.Listener {
             override fun onPlaybackStateChanged(
                 messageId: String,
@@ -1552,6 +1594,16 @@ class MeshEngine(private val context: Context) {
         })
         running = false
         emit("engineState", mapOf("state" to "stopped"))
+    }
+
+    /**
+     * TEP secret: identity private key'dan SHA-256 orqali 32 bayt kalit
+     * hosil qiladi. Har doim bir xil natija — secure storage kerak emas.
+     */
+    private fun securedTepSecret(): ByteArray {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        digest.update(identity.privateKey())
+        return digest.digest("tep-meshnet-v1".toByteArray()) // context string
     }
 
     /** Sync with background service (call when app comes to foreground). */

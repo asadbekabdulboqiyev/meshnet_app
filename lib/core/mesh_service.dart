@@ -156,6 +156,28 @@ class MeshService {
     }
   }
 
+  /// TEP (Teno Event Protocol): signed app-level eventni mesh'ga broadcast
+  /// qiladi. Eventlar `tepEvent` stream'ida qabul qilinadi.
+  /// Event turlari: peer.joined, message.relayed, file.transferred, group.updated.
+  Future<bool> emitTepEvent(String type, String payload) async {
+    try {
+      final result = await _method.invokeMethod('emitTepEvent', {
+        'type': type,
+        'payload': payload,
+      });
+      if (result is Map) {
+        return result['status'] == 'sent';
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Qabul qilingan TEP eventlar stream'i: {type, eventId, source, payload}.
+  Stream<Map<String, dynamic>> tepEvents() =>
+      events.where((e) => e['event'] == 'tepEvent');
+
   Future<String?> sendFile(String targetDeviceId, String filePath) async {
     final result = await _method.invokeMethod('sendFile', {
       'targetDeviceId': targetDeviceId,

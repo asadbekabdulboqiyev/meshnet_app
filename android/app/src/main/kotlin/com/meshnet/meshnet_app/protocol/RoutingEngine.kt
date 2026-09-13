@@ -159,6 +159,19 @@ class RoutingEngine(
     @Volatile
     var searchHandler: SearchHandler? = null
 
+    /**
+     * TEP (Teno Event Protocol): signed, idempotent app-level event frames
+     * (MessageType.TEP_EVENT, spec/transport-mesh.md). Handled outside
+     * RoutingEngine by TepEventManager; frames are broadcast-relayed like
+     * collab/DNS frames (dup-drop via seen-cache prevents storms).
+     */
+    interface TepHandler {
+        fun onTepFrame(frame: MeshFrame) {}
+    }
+
+    @Volatile
+    var tepHandler: TepHandler? = null
+
     /** Route table entry: how to reach a specific node. */
     data class RouteEntry(
         val destination: String,
@@ -379,6 +392,7 @@ class RoutingEngine(
                 emergencyHandler?.onEmergencyFrame(frame)
             MessageType.SEARCH_QUERY, MessageType.SEARCH_RESULT, MessageType.SEARCH_INDEX_SYNC ->
                 searchHandler?.onSearchFrame(frame)
+            MessageType.TEP_EVENT -> tepHandler?.onTepFrame(frame)
             MessageType.PEER_PING -> { /* javob kerak emas - borlik */ }
             MessageType.ROLE_GRANT -> rbacHandler?.onRoleGrant(frame)
             MessageType.SIGN_KEY -> cryptoHandler?.onSignKey(frame)
@@ -637,6 +651,18 @@ class RoutingEngine(
         } else if (frame.hopLimit > 0) {
             relayFrame(frame)
         }
+    }
+
+    // ---------------- TEP (Teno Event Protocol) ----------------
+
+    /** Broadcast a signed TEP frame (MessageType.TEP_EVENT) over the mesh.
+     *  Spec: spec/transport-mesh.md — identity + seq seen-cache orqali
+     *  cross-device dedupe; hopLimit/ttl kernel'ga tegmaydi. */
+    fun sendTepEvent(frame: MeshFrame): Boolean {
+        val seq = nextSeq()
+        registerSeen("$identityDeviceId:$seq")
+        emitForSend(frame.copy(msgSeq = seq), null)
+        return true
     }
 
     // ---------------- LocalNet Phase 1: DNS frames ----------------

@@ -110,6 +110,11 @@ class MessageTypeTest {
         assertEquals(MessageType.RATCHET_MSG, MessageType.fromCode(0x41))
     }
 
+    @Test
+    fun fromCode_tepEvent() {
+        assertEquals(MessageType.TEP_EVENT, MessageType.fromCode(0x29))
+    }
+
     // =================== Invalid codes ===================
 
     @Test
@@ -167,7 +172,7 @@ class MessageTypeTest {
 
     @Test
     fun allEntries_count() {
-        assertEquals(40, MessageType.entries.size)
+        assertEquals(41, MessageType.entries.size)
     }
 
     @Test
@@ -208,6 +213,11 @@ class MessageTypeTest {
     @Test
     fun ratchetMsg_codeIs0x41() {
         assertEquals(0x41.toByte(), MessageType.RATCHET_MSG.code)
+    }
+
+    @Test
+    fun tepEvent_codeIs0x29() {
+        assertEquals(0x29.toByte(), MessageType.TEP_EVENT.code)
     }
 
     // =================== fromCode roundtrip ===================
