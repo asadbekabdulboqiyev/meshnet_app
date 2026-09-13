@@ -38,24 +38,24 @@ MeshNet employs a **hybrid security architecture** designed for offline resilien
 - Production deployments should grant `HTTP_SERVER` only to trusted devices
 
 ### Emergency Broadcast Encryption
-- All SOS xabarlari ECDSA P-256 imzo bilan imzolanadi
-- Qog'oz xabarlari (Fake SOS) tika olmaydi
-- Barcha imzo-tasdiqlangan xabarlarga faol attended ack kerek
-- Imzo noto'g'ri bo'lsa, xabarlanayotganda qayta uramaylik
+- All SOS messages are signed with ECDSA P-256 signatures
+- Fake SOS messages cannot be forged without the signing key
+- Every signature-verified alert requires an active acknowledgment
+- Invalid signatures are rejected and never rebroadcast
 
 ### Backward Compatibility
-- Android 7.0 (API 24) - to'liq funktsiyalar
-- Android 5.0-6.0 (API 21-23) - cheklanmagandan kam funktsiyalar
-- Eski telefonlar - xabar beriladi, iloga yuklanmaydi
+- Android 7.0 (API 24) — full feature set
+- Android 5.0–6.0 (API 21–23) — reduced feature set
+- Older devices are warned that the app cannot be installed
 
 ### Fake Alert Detection
-- Xabarlikka "SOS", "HELP", "EMERGENCY", "MAYDAY", "TEST", "SIMULATION" so'zlari qat'iy nazorat qaraylik
-- Xabarlikka javob berish oldin texshirilib, bog'liq emasliklarni filtrlaymiz
+- Messages containing "SOS", "HELP", "EMERGENCY", "MAYDAY", "TEST", "SIMULATION" are strictly screened
+- Incoming alerts are validated and unrelated content is filtered before any response
 
 ### App Version Support
-- Android 7.0 (API 24) - to'liq funktsiyalar
-- Android 5.0-6.0 (API 21-23) - cheklanmagandan kam funktsiyalar
-- Eski telefonlar - xabar beriladi, iloga yuklanmaydi
+- Android 7.0 (API 24) — full feature set
+- Android 5.0–6.0 (API 21–23) — reduced feature set
+- Older devices are warned that the app cannot be installed
 
 ## Features
 
